@@ -1,0 +1,19 @@
+[
+  { "wait": 900, "shot": "__OUT__/home.png" },
+  { "eval": "location.hash='p2/lecon'" },
+  { "wait": 700, "shot": "__OUT__/lesson.png" },
+  { "eval": "location.hash='p2'" },
+  { "wait": 700, "shot": "__OUT__/drill.png" },
+  { "tap": ".key.white" },
+  { "wait": 500, "shot": "__OUT__/drill-wrong.png" },
+  { "eval": "location.hash='p1'" },
+  { "wait": 700, "shot": "__OUT__/drill-grand.png" },
+  { "eval": "location.hash='r1'" },
+  { "wait": 700, "shot": "__OUT__/exercise.png" },
+  { "tap": "button.primary" },
+  { "wait": 11500, "shot": "__OUT__/exercise-done.png" },
+  { "eval": "location.hash='stats'" },
+  { "wait": 700, "shot": "__OUT__/stats.png" },
+  { "eval": "location.hash='settings'" },
+  { "wait": 700, "shot": "__OUT__/settings.png" }
+]
