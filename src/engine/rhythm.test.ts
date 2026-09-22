@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { LEVELS } from './levels'
-import type { CellKind, IElement } from './rhythm'
-import { BEATS_PER_MEASURE, generateMeasures, scoreTaps } from './rhythm'
+import type { CellKind, IElement, IMeasure } from './rhythm'
+import { BEATS_PER_MEASURE, generateMeasures, onsetsOf, scoreTaps } from './rhythm'
 
 const vocabs: CellKind[][] = LEVELS.flatMap((l) => (l.kind === 'rhythm' || l.kind === 'phrase' ? [l.vocab] : []))
 
-function checkMeasure(elements: IElement[]): void {
+const isPause = (elements: IElement[]): boolean => elements.length === 1 && elements[0].kind === 'rest' && elements[0].value === 'w'
+
+function checkMeasure(elements: IElement[], index: number, previous: IMeasure | undefined): void {
   const sorted = [...elements].sort((a, b) => a.start - b.start)
   expect(sorted.map((e) => e.start)).toEqual(elements.map((e) => e.start))
   expect(elements.reduce((a, e) => a + e.beats, 0)).toBe(BEATS_PER_MEASURE)
@@ -19,16 +21,33 @@ function checkMeasure(elements: IElement[]): void {
   for (let i = 1; i < elements.length; i++) {
     if (elements[i].kind === 'rest') expect(elements[i - 1].kind).toBe('note')
   }
-  expect(elements.some((e) => e.kind === 'note')).toBe(true)
+  if (isPause(elements)) {
+    expect(index).toBeGreaterThan(0)
+    expect(previous && isPause(previous.elements)).toBe(false)
+  } else {
+    expect(elements.some((e) => e.kind === 'note')).toBe(true)
+  }
 }
 
 describe('generateMeasures', () => {
   it('never produces an invalid bar', () => {
     for (const vocab of vocabs) {
       for (let run = 0; run < 300; run++) {
-        for (const m of generateMeasures(vocab, 2)) checkMeasure(m.elements)
+        const measures = generateMeasures(vocab, 2)
+        measures.forEach((m, i) => checkMeasure(m.elements, i, measures[i - 1]))
+        expect(onsetsOf(measures).length).toBeGreaterThanOrEqual(3)
       }
     }
+  })
+
+  it('produces a whole-measure pause from time to time, never in the first bar', () => {
+    let pauses = 0
+    for (let run = 0; run < 300; run++) {
+      const measures = generateMeasures(['q', 'h', 'rq', 'rh', 'rw'], 2)
+      expect(isPause(measures[0].elements)).toBe(false)
+      if (isPause(measures[1].elements)) pauses++
+    }
+    expect(pauses).toBeGreaterThan(0)
   })
 
   it('beams eighth pairs together', () => {

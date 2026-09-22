@@ -8,7 +8,7 @@ import { cardName, KEYS } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
 import { recordSession } from '../engine/progress'
 import type { IAnswer } from '../engine/scheduler'
-import { median, PASS_ACCURACY, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, updateStat } from '../engine/scheduler'
+import { historyKey, levelStateOf, median, nextKey, PASS_ACCURACY, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, updateStat } from '../engine/scheduler'
 import { setMidiHandlers } from '../midi/bus'
 import { useComputerKeys } from '../midi/computerKeys'
 import type { IScore } from '../score/layout'
@@ -61,19 +61,19 @@ function scoreFor(card: ICard, system: IPitchLevel['system']): IScore {
   }
 }
 
-function pickKey(level: IPitchLevel): KeyId {
-  return level.keys ? level.keys[Math.floor(Math.random() * level.keys.length)] : 'C'
+function pickKey(level: IPitchLevel, progress: IProgress): KeyId {
+  return nextKey(level, progress) ?? 'C'
 }
 
 function cardsFor(level: IPitchLevel, key: KeyId): ICard[] {
   return level.keys ? level.cards.filter((c) => c.key === key) : level.cards
 }
 
-function freshState(level: IPitchLevel, stats: IProgress['cards']): IState {
-  const sessionKey = pickKey(level)
+function freshState(level: IPitchLevel, progress: IProgress): IState {
+  const sessionKey = pickKey(level, progress)
   return {
     i: 0,
-    card: pickCard(cardsFor(level, sessionKey), stats, level.focus, null),
+    card: pickCard(cardsFor(level, sessionKey), progress.cards, level.focus, null),
     shownAt: performance.now(),
     status: 'waiting',
     wrongKey: null,
@@ -88,7 +88,9 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
   const [pressed, setPressed] = useState<Set<number>>(() => new Set())
   const statsRef = useRef(progress.cards)
   statsRef.current = progress.cards
-  const [state, setState] = useState<IState>(() => freshState(level, progress.cards))
+  const progressRef = useRef(progress)
+  progressRef.current = progress
+  const [state, setState] = useState<IState>(() => freshState(level, progress))
   const stateRef = useRef(state)
   const timer = useRef<number | null>(null)
 
@@ -102,14 +104,15 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
       const answers: IAnswer[] = results.map((r) => ({ ok: r.ok, rt: r.rt }))
       const accuracy = answers.filter((a) => a.ok).length / answers.length
       const medianRt = median(answers.map((a) => a.rt))
+      const key = historyKey(level.id, level.keys ? stateRef.current.sessionKey : null)
       update((p) =>
         recordSession(
-          { ...p, history: { ...p.history, [level.id]: [...(p.history[level.id] ?? []), ...answers].slice(-SESSION_LENGTH) } },
+          { ...p, history: { ...p.history, [key]: [...(p.history[key] ?? []), ...answers].slice(-SESSION_LENGTH) } },
           { date: Date.now(), level: level.id, accuracy, medianRt },
         ),
       )
     },
-    [level.id, update],
+    [level, update],
   )
 
   const next = useCallback(() => {
@@ -180,7 +183,7 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
     [],
   )
 
-  const restart = (): void => commit(freshState(level, statsRef.current))
+  const restart = (): void => commit(freshState(level, progressRef.current))
 
   const { card, status, i, results, finished, sessionKey } = state
   const notation = progress.settings.notation
@@ -188,7 +191,7 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
   const score = useMemo(() => scoreFor(card, level.system), [card, level.system])
 
   if (finished) {
-    return <Summary level={level} results={results} notation={notation} progress={progress} onAgain={restart} onExit={onExit} onLesson={onLesson} />
+    return <Summary level={level} sessionKey={sessionKey} results={results} notation={notation} progress={progress} onAgain={restart} onExit={onExit} onLesson={onLesson} />
   }
 
   return (
@@ -229,6 +232,7 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
 
 interface ISummaryProps {
   level: IPitchLevel
+  sessionKey: KeyId
   results: IResult[]
   notation: Notation
   progress: IProgress
@@ -237,10 +241,16 @@ interface ISummaryProps {
   onLesson: () => void
 }
 
-function Summary({ level, results, notation, progress, onAgain, onExit, onLesson }: ISummaryProps) {
+function Summary({ level, sessionKey, results, notation, progress, onAgain, onExit, onLesson }: ISummaryProps) {
   const accuracy = results.filter((r) => r.ok).length / Math.max(1, results.length)
   const medianRt = median(results.map((r) => r.rt))
-  const state = pitchLevelState(progress.history[level.id] ?? [])
+  const keyed = !!level.keys
+  const state = pitchLevelState(progress.history[historyKey(level.id, keyed ? sessionKey : null)] ?? [])
+  const whole = levelStateOf(level, progress)
+  const next = keyed ? nextKey(level, progress) : null
+  let verdict = `Objectif : ${percent(PASS_ACCURACY)} de justesse et un temps médian sous ${seconds(PASS_RT)} sur les ${SESSION_LENGTH} dernières notes.`
+  if (whole.status === 'done') verdict = 'Palier validé.'
+  else if (state.status === 'done') verdict = keyed ? `${KEYS[sessionKey].label} validé${next ? `, prochaine tonalité : ${KEYS[next].label}` : ''}.` : 'Palier validé.'
   const perCard = new Map<string, { card: ICard; n: number; errors: number; rt: number }>()
   for (const r of results) {
     const a = perCard.get(r.card.id) ?? { card: r.card, n: 0, errors: 0, rt: 0 }
@@ -277,11 +287,7 @@ function Summary({ level, results, notation, progress, onAgain, onExit, onLesson
             <div className="stat-label">temps médian</div>
           </div>
         </div>
-        <p className="muted">
-          {state.status === 'done'
-            ? 'Palier validé.'
-            : `Objectif : ${percent(PASS_ACCURACY)} de justesse et un temps médian sous ${seconds(PASS_RT)} sur les ${SESSION_LENGTH} dernières notes.`}
-        </p>
+        <p className="muted">{verdict}</p>
         {weak.length > 0 && (
           <div className="weak">
             <h3>À travailler</h3>

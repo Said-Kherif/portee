@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { levelById } from './levels'
 import { makeCard } from './notes'
-import { EXERCISES_TO_PASS, exerciseLevelState, median, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, updateStat } from './scheduler'
+import { defaultProgress } from './progress'
+import { EXERCISES_TO_PASS, exerciseLevelState, historyKey, levelStateOf, median, nextKey, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, updateStat } from './scheduler'
 
 const answers = (n: number, ok = true, rt = 1000) => Array.from({ length: n }, () => ({ ok, rt }))
 
@@ -69,5 +71,40 @@ describe('updateStat', () => {
 
   it('clamps very slow answers', () => {
     expect(updateStat(undefined, true, 60000).rt).toBe(6000)
+  })
+})
+
+describe('keyed levels', () => {
+  const p7 = levelById('p7')
+  if (p7?.kind !== 'pitch' || !p7.keys) throw new Error('p7 must be a keyed pitch level')
+  const keys = p7.keys
+  const done = answers(SESSION_LENGTH)
+
+  it('start with the first key and stay new', () => {
+    const p = defaultProgress()
+    expect(nextKey(p7, p)).toBe(keys[0])
+    expect(levelStateOf(p7, p).status).toBe('new')
+  })
+
+  it('advance key by key and count the validated ones', () => {
+    const p = defaultProgress()
+    p.history[historyKey(p7.id, keys[0])] = done
+    expect(nextKey(p7, p)).toBe(keys[1])
+    const state = levelStateOf(p7, p)
+    expect(state.status).toBe('progress')
+    expect(state.count).toBe(1)
+  })
+
+  it('are done once every key is done', () => {
+    const p = defaultProgress()
+    for (const k of keys) p.history[historyKey(p7.id, k)] = done
+    expect(levelStateOf(p7, p).status).toBe('done')
+    expect(keys).toContain(nextKey(p7, p))
+  })
+
+  it('ignore the legacy unkeyed history', () => {
+    const p = defaultProgress()
+    p.history[p7.id] = done
+    expect(levelStateOf(p7, p).status).toBe('new')
   })
 })

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { percent, seconds } from '../engine/format'
-import { levelById } from '../engine/levels'
+import type { Level } from '../engine/levels'
+import { levelById, LEVELS } from '../engine/levels'
 import type { Clef } from '../engine/notes'
 import { cardFromId, cardName, noteName } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
@@ -8,12 +9,13 @@ import { isStreakAlive } from '../engine/progress'
 import { weightOf } from '../engine/scheduler'
 import type { IElement } from '../engine/rhythm'
 import type { IScore } from '../score/layout'
-import { IconBack } from './Icons'
+import { IconBack, IconForward } from './Icons'
 import { Staff } from './Staff'
 
 interface IStatsProps {
   progress: IProgress
   onExit: () => void
+  onSelect: (level: Level) => void
 }
 
 interface IAgg {
@@ -37,7 +39,7 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-export function Stats({ progress, onExit }: IStatsProps) {
+export function Stats({ progress, onExit, onSelect }: IStatsProps) {
   const notation = progress.settings.notation
 
   const aggs = useMemo(() => {
@@ -123,17 +125,32 @@ export function Stats({ progress, onExit }: IStatsProps) {
           <>
             <h2>À travailler</h2>
             <ul className="weak">
-              {weak.map((x) => (
-                <li key={x.id}>
-                  <span>
-                    {x.card ? cardName(x.card, notation) : x.id}
-                    <span className="muted small"> · {x.card ? (x.card.clef === 'treble' ? 'clé de sol' : 'clé de fa') : ''}</span>
-                  </span>
-                  <span className="muted">
-                    {percent(x.s.errors / x.s.n)} d’erreurs · {seconds(x.s.rt)}
-                  </span>
-                </li>
-              ))}
+              {weak.map((x) => {
+                const target = LEVELS.find((l) => l.kind === 'pitch' && l.cards.some((c) => c.id === x.id))
+                const body = (
+                  <>
+                    <span>
+                      {x.card ? cardName(x.card, notation) : x.id}
+                      <span className="muted small"> · {x.card ? (x.card.clef === 'treble' ? 'clé de sol' : 'clé de fa') : ''}</span>
+                    </span>
+                    <span className="muted">
+                      {percent(x.s.errors / x.s.n)} d’erreurs · {seconds(x.s.rt)}
+                    </span>
+                  </>
+                )
+                return (
+                  <li key={x.id} className={target ? 'tappable' : ''}>
+                    {target ? (
+                      <button className="row-button" onClick={() => onSelect(target)}>
+                        {body}
+                        <IconForward />
+                      </button>
+                    ) : (
+                      body
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </>
         )}

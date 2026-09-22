@@ -338,13 +338,13 @@ button.link svg {
 }
 
 .drill .staff {
-  width: min(100%, 340px);
+  width: min(100%, 358px);
   height: auto;
-  max-height: min(44vh, 340px);
+  max-height: min(50vh, 400px);
 }
 
 .drill .staff.grand {
-  max-height: min(52vh, 400px);
+  max-height: min(56vh, 440px);
 }
 
 .exercise .staff,
@@ -513,7 +513,8 @@ button.link svg {
 }
 
 .weak li > span:first-child,
-.sessions li > span:first-child {
+.sessions li > span:first-child,
+.row-button > span:first-child {
   min-width: 0;
   font-family: var(--serif);
   font-size: 19px;
@@ -521,10 +522,36 @@ button.link svg {
 }
 
 .weak li > span:last-child,
-.sessions li > span:last-child {
+.sessions li > span:last-child,
+.row-button > span:nth-child(2) {
   font-size: 14px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.weak li.tappable {
+  padding: 0;
+}
+
+.row-button {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font-weight: 400;
+  text-align: left;
+}
+
+.row-button svg {
+  flex: none;
+  align-self: center;
+  margin-left: 8px;
+  color: var(--muted);
 }
 
 .weak li .small,
@@ -899,6 +926,18 @@ button.link svg {
 
 .staff .el.tappable {
   cursor: pointer;
+  outline: none;
+}
+
+.staff rect.hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.staff .el.tappable:focus-visible rect.hit {
+  stroke: var(--accent);
+  stroke-width: 2px;
+  rx: 6px;
 }
 
 .lesson .scroll {
@@ -978,4 +1017,71 @@ button.link svg {
   height: auto;
   max-width: 100%;
   margin: 0 auto 12px;
+}
+
+.piano-wrap {
+  position: relative;
+  flex: none;
+}
+
+.piano-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.piano-fade.left {
+  left: 0;
+  background: linear-gradient(to right, var(--piano-bg), rgba(34, 30, 26, 0));
+}
+
+.piano-fade.right {
+  right: 0;
+  background: linear-gradient(to left, var(--piano-bg), rgba(34, 30, 26, 0));
+}
+
+.beats {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 64px;
+}
+
+.beat {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--card);
+  margin: 0 7px;
+  transition: transform 0.08s;
+}
+
+.beat:first-child {
+  width: 18px;
+  height: 18px;
+}
+
+.beat.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.15);
+}
+
+.level-tag {
+  align-self: flex-start;
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.figure-hint.done {
+  color: var(--ok);
 }

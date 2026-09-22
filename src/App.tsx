@@ -117,7 +117,7 @@ export function App() {
       {view.name === 'level' && view.level.kind !== 'pitch' && (
         <Exercise key={view.level.id} level={view.level} progress={progress} update={update} onExit={home} onLesson={() => openLesson(view.level)} />
       )}
-      {view.name === 'stats' && <Stats progress={progress} onExit={home} />}
+      {view.name === 'stats' && <Stats progress={progress} onExit={home} onSelect={openLevel} />}
       {view.name === 'gallery' && <Gallery />}
       {view.name === 'settings' && (
         <Settings progress={progress} update={update} midi={midi} onExit={home} />

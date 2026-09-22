@@ -1,10 +1,11 @@
 import { percent, seconds } from '../engine/format'
 import type { Level } from '../engine/levels'
 import { LEVELS } from '../engine/levels'
+import { KEYS } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
 import { isStreakAlive } from '../engine/progress'
 import type { ILevelState } from '../engine/scheduler'
-import { EXERCISES_TO_PASS, exerciseLevelState, pitchLevelState, SESSION_LENGTH } from '../engine/scheduler'
+import { EXERCISES_TO_PASS, historyKey, levelStateOf, nextKey, pitchLevelState, SESSION_LENGTH } from '../engine/scheduler'
 import { IconChart, IconCheck, IconFlame, IconSliders } from './Icons'
 
 interface IHomeProps {
@@ -15,13 +16,15 @@ interface IHomeProps {
   onSettings: () => void
 }
 
-export function levelState(level: Level, progress: IProgress): ILevelState {
-  return level.kind === 'pitch' ? pitchLevelState(progress.history[level.id] ?? []) : exerciseLevelState(progress.scores[level.id] ?? [])
-}
-
-function statusText(level: Level, state: ILevelState): string {
+function statusText(level: Level, state: ILevelState, progress: IProgress): string {
   if (state.status === 'done') return 'Validé'
   if (state.status === 'new') return ''
+  if (level.kind === 'pitch' && level.keys) {
+    const key = nextKey(level, progress)
+    const current = key ? pitchLevelState(progress.history[historyKey(level.id, key)] ?? []) : null
+    const detail = current && current.status === 'progress' ? ` · ${current.count}/${SESSION_LENGTH} · ${percent(current.accuracy)}` : ''
+    return `${state.count}/${level.keys.length} tonalités${key ? ` · ${KEYS[key].label}` : ''}${detail}`
+  }
   if (level.kind === 'pitch') {
     return `${state.count}/${SESSION_LENGTH} · ${percent(state.accuracy)} · ${seconds(state.medianRt)}`
   }
@@ -62,7 +65,8 @@ export function Home({ progress, onSelect, onLesson, onStats, onSettings }: IHom
             <section key={g.title}>
               <h2>{g.title}</h2>
               {g.levels.map((level, idx) => {
-                const state = levelState(level, progress)
+                const state = levelStateOf(level, progress)
+                const status = statusText(level, state, progress)
                 const isRecommended = !recommended && state.status !== 'done'
                 if (isRecommended) recommended = true
                 return (
@@ -72,7 +76,8 @@ export function Home({ progress, onSelect, onLesson, onStats, onSettings }: IHom
                       <span className="level-body">
                         <span className="level-title">{level.title}</span>
                         <span className="level-sub">{level.subtitle}</span>
-                        {statusText(level, state) && <span className="level-status">{statusText(level, state)}</span>}
+                        {status && <span className="level-status">{status}</span>}
+                        {isRecommended && !status && <span className="level-tag">À suivre</span>}
                       </span>
                     </button>
                     <button className="level-lesson" onClick={() => onLesson(level)}>

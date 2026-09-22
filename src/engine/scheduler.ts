@@ -1,4 +1,6 @@
-import type { ICard } from './notes'
+import type { IPitchLevel, Level } from './levels'
+import type { ICard, KeyId } from './notes'
+import type { IProgress } from './progress'
 
 export interface ICardStat {
   n: number
@@ -84,4 +86,25 @@ export function exerciseLevelState(scores: number[]): ILevelState {
   const accuracy = recent.reduce((a, b) => a + b, 0) / recent.length / 100
   const done = recent.length >= EXERCISES_TO_PASS && accuracy * 100 >= PASS_SCORE
   return { status: done ? 'done' : 'progress', accuracy, medianRt: 0, count: recent.length }
+}
+
+export function historyKey(levelId: string, key: KeyId | null): string {
+  return key ? `${levelId}:${key}` : levelId
+}
+
+export function nextKey(level: IPitchLevel, progress: IProgress): KeyId | null {
+  if (!level.keys) return null
+  const pending = level.keys.filter((k) => pitchLevelState(progress.history[historyKey(level.id, k)] ?? []).status !== 'done')
+  if (pending.length > 0) return pending[0]
+  return level.keys[Math.floor(Math.random() * level.keys.length)]
+}
+
+export function levelStateOf(level: Level, progress: IProgress): ILevelState {
+  if (level.kind !== 'pitch') return exerciseLevelState(progress.scores[level.id] ?? [])
+  if (!level.keys) return pitchLevelState(progress.history[level.id] ?? [])
+  const states = level.keys.map((k) => pitchLevelState(progress.history[historyKey(level.id, k)] ?? []))
+  const done = states.filter((s) => s.status === 'done').length
+  if (done === level.keys.length) return { status: 'done', accuracy: 1, medianRt: 0, count: done }
+  const started = states.some((s) => s.status !== 'new')
+  return { status: started ? 'progress' : 'new', accuracy: 0, medianRt: 0, count: done }
 }

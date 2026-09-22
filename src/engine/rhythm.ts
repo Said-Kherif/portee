@@ -2,7 +2,7 @@ import type { Accidental, Clef } from './notes'
 import { MIDDLE_LINE, midiAt } from './notes'
 
 export type NoteValue = 'w' | 'h' | 'q' | 'e'
-export type CellKind = 'q' | 'h' | 'w' | 'h.' | 'ee' | 'q.e' | 'rq' | 'rh'
+export type CellKind = 'q' | 'h' | 'w' | 'h.' | 'ee' | 'q.e' | 'rq' | 'rh' | 'rw'
 export type Grade = 'perfect' | 'good' | 'late' | 'miss'
 
 export interface IElement {
@@ -57,14 +57,19 @@ export const PERFECT_MS = 60
 export const GOOD_MS = 120
 export const WINDOW_MS = 200
 
-const CELL_BEATS: Record<CellKind, number> = { q: 1, h: 2, w: 4, 'h.': 3, ee: 1, 'q.e': 2, rq: 1, rh: 2 }
+const CELL_BEATS: Record<CellKind, number> = { q: 1, h: 2, w: 4, 'h.': 3, ee: 1, 'q.e': 2, rq: 1, rh: 2, rw: 4 }
 
-function allowed(cell: CellKind, start: number, remaining: number, prevWasRest: boolean): boolean {
+function allowed(cell: CellKind, start: number, remaining: number, prevWasRest: boolean, silentOk: boolean): boolean {
   if (CELL_BEATS[cell] > remaining) return false
   if ((cell === 'h' || cell === 'rh' || cell === 'q.e') && start % 2 !== 0) return false
   if ((cell === 'w' || cell === 'h.') && start !== 0) return false
+  if (cell === 'rw' && (start !== 0 || !silentOk)) return false
   if ((cell === 'rq' || cell === 'rh') && prevWasRest) return false
   return true
+}
+
+function isPause(elements: IElement[]): boolean {
+  return elements.length === 1 && elements[0].kind === 'rest' && elements[0].value === 'w'
 }
 
 function expand(cell: CellKind, start: number, nextBeam: () => number): IElement[] {
@@ -93,6 +98,8 @@ function expand(cell: CellKind, start: number, nextBeam: () => number): IElement
       return [{ kind: 'rest', value: 'q', dots: 0, beats: 1, start }]
     case 'rh':
       return [{ kind: 'rest', value: 'h', dots: 0, beats: 2, start }]
+    case 'rw':
+      return [{ kind: 'rest', value: 'w', dots: 0, beats: 4, start }]
   }
 }
 
@@ -104,8 +111,16 @@ export function generateMeasures(vocab: CellKind[], count: number): IMeasure[] {
   const cells: CellKind[] = vocab.includes('q') ? vocab : ['q', ...vocab]
   let beam = 0
   const nextBeam = () => ++beam
+  const minOnsets = count + 1
+  let measures = buildMeasures(cells, count, nextBeam)
+  for (let attempt = 0; attempt < 20 && onsetsOf(measures).length < minOnsets; attempt++) measures = buildMeasures(cells, count, nextBeam)
+  return measures
+}
+
+function buildMeasures(cells: CellKind[], count: number, nextBeam: () => number): IMeasure[] {
   const measures: IMeasure[] = []
   for (let m = 0; m < count; m++) {
+    const silentOk = m > 0 && !isPause(measures[m - 1].elements)
     let elements: IElement[] = []
     let guard = 0
     do {
@@ -113,14 +128,14 @@ export function generateMeasures(vocab: CellKind[], count: number): IMeasure[] {
       let start = 0
       let prevRest = false
       while (start < BEATS_PER_MEASURE) {
-        const options = cells.filter((c) => allowed(c, start, BEATS_PER_MEASURE - start, prevRest))
+        const options = cells.filter((c) => allowed(c, start, BEATS_PER_MEASURE - start, prevRest, silentOk))
         const cell: CellKind = options.length > 0 ? pick(options) : 'q'
         elements.push(...expand(cell, start, nextBeam))
         start += CELL_BEATS[cell]
         prevRest = cell.startsWith('r')
       }
       guard++
-    } while (elements.every((e) => e.kind === 'rest') && guard < 10)
+    } while (elements.every((e) => e.kind === 'rest') && !(silentOk && isPause(elements)) && guard < 10)
     measures.push({ elements })
   }
   return measures

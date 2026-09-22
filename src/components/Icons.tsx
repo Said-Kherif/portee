@@ -61,3 +61,11 @@ export function IconFlame({ size = 16 }: IIconProps) {
     </Svg>
   )
 }
+
+export function IconForward({ size = 18 }: IIconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M9 6l6 6-6 6" />
+    </Svg>
+  )
+}

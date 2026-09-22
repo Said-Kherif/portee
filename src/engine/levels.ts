@@ -80,10 +80,11 @@ const accidentals = [...accidentalCards('treble', 2, 10), ...accidentalCards('ba
 const withAccidentals = [...range('treble', 2, 10), ...range('bass', -10, -2), ...accidentals]
 const KEY_LIST: KeyId[] = ['G', 'D', 'A', 'F', 'Bb', 'Eb']
 const keyed = KEY_LIST.flatMap((k) => [...keyCards('treble', 2, 10, k), ...keyCards('bass', -10, -2, k)])
+const keyedFocus = ids(keyed.filter((c) => c.shown === 0 || keyAlteration(c.key, letterAt(c.diatonic)) !== 0))
 
 const RHYTHM_BASE: CellKind[] = ['q', 'h', 'w', 'h.']
 const RHYTHM_EIGHTHS: CellKind[] = [...RHYTHM_BASE, 'ee', 'q.e']
-const RHYTHM_RESTS: CellKind[] = ['q', 'h', 'h.', 'ee', 'q.e', 'rq', 'rh']
+const RHYTHM_RESTS: CellKind[] = ['q', 'h', 'w', 'h.', 'ee', 'q.e', 'rq', 'rh', 'rw']
 const PHRASE_VOCAB: CellKind[] = ['q', 'h', 'h.', 'ee', 'q.e']
 
 export const LEVELS: Level[] = [
@@ -93,10 +94,11 @@ export const LEVELS: Level[] = [
   { kind: 'pitch', id: 'p4', title: 'Autour du do central', subtitle: 'Les deux clés mélangées et la zone entre les portées', system: 'grand', cards: aroundMiddle, focus: aroundMiddleFocus },
   { kind: 'pitch', id: 'p5', title: 'Lignes supplémentaires', subtitle: 'Vers le haut jusqu’au do6, vers le bas jusqu’au do2', system: 'grand', cards: ledgers, focus: ledgersFocus },
   { kind: 'pitch', id: 'p6', title: 'Altérations', subtitle: 'Dièses et bémols, donc les touches noires', system: 'grand', cards: withAccidentals, focus: ids(accidentals) },
-  { kind: 'pitch', id: 'p7', title: 'Armures', subtitle: 'Une tonalité par série, jusqu’à trois dièses ou trois bémols', system: 'grand', cards: keyed, focus: new Set(), keys: KEY_LIST },
+  { kind: 'pitch', id: 'p7', title: 'Armures', subtitle: 'Une tonalité par série, jusqu’à trois dièses ou trois bémols', system: 'grand', cards: keyed, focus: keyedFocus, keys: KEY_LIST },
   { kind: 'rhythm', id: 'r1', title: 'Noires et blanches', subtitle: 'Noires, blanches, blanches pointées et rondes en 4/4', vocab: RHYTHM_BASE },
   { kind: 'rhythm', id: 'r2', title: 'Croches', subtitle: 'Croches par deux et noires pointées', vocab: RHYTHM_EIGHTHS },
-  { kind: 'rhythm', id: 'r3', title: 'Silences', subtitle: 'Soupirs et demi-pauses au milieu des notes', vocab: RHYTHM_RESTS },
+  { kind: 'rhythm', id: 'r3', title: 'Silences', subtitle: 'Soupirs, demi-pauses et pauses au milieu des notes', vocab: RHYTHM_RESTS },
+  { kind: 'phrase', id: 'f0', title: 'Cinq notes', subtitle: 'Do4 à sol4, noires, blanches et rondes, la main en place', clef: 'treble', range: [0, 4], vocab: RHYTHM_BASE },
   { kind: 'phrase', id: 'f1', title: 'Main droite', subtitle: 'Deux mesures en clé de sol, hauteurs et rythme', clef: 'treble', range: [0, 11], vocab: PHRASE_VOCAB },
   { kind: 'phrase', id: 'f2', title: 'Main gauche', subtitle: 'Deux mesures en clé de fa, hauteurs et rythme', clef: 'bass', range: [-9, 2], vocab: PHRASE_VOCAB },
 ]

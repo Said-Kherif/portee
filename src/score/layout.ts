@@ -23,6 +23,7 @@ export interface IElementLayout {
   index: number
   x: number
   y: number
+  headW: number
   prims: Prim[]
 }
 
@@ -150,7 +151,7 @@ export function layoutScore(score: IScore, sp: number): ILayout {
     const groups = new Map<number, IBeamNote[]>()
 
     for (const e of m.elements) {
-      const ex = mX + pad + e.start * beatW
+      const ex = e.kind === 'rest' && e.value === 'w' ? mX + pad + (beats * beatW) / 2 - 0.56 * sp : mX + pad + e.start * beatW
       const s = staffFor(e.clef)
       const prims: Prim[] = []
       let y: number
@@ -169,7 +170,7 @@ export function layoutScore(score: IScore, sp: number): ILayout {
         }
         prims.push({ t: 'glyph', code: G.head[e.value], x: ex, y })
         if (e.dots) prims.push({ t: 'glyph', code: G.dot, x: ex + headW + 0.4 * sp, y: d % 2 === 0 ? y - 0.5 * sp : y })
-        const el: IElementLayout = { index, x: ex, y, prims }
+        const el: IElementLayout = { index, x: ex, y, headW, prims }
         if (e.value !== 'w') {
           if (e.beam != null) {
             const g = groups.get(e.beam) ?? []
@@ -183,7 +184,7 @@ export function layoutScore(score: IScore, sp: number): ILayout {
         index++
         continue
       }
-      elements.push({ index, x: ex, y, prims })
+      elements.push({ index, x: ex, y, headW: 1.2 * sp, prims })
       index++
     }
 

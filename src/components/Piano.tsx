@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import type { Notation } from '../engine/notes'
 import { isBlackKey, whiteKeyLabel } from '../engine/notes'
 
@@ -23,6 +23,14 @@ export function Piano({ low, high, pressed, hint = null, wrong = null, marks = [
   const ref = useRef<HTMLDivElement>(null)
   const pending = useRef<Map<number, { timer: number; at: number; x: number; y: number }>>(new Map())
   const [keyW, setKeyW] = useState(40)
+  const [edges, setEdges] = useState({ left: false, right: false })
+  const updateEdges = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    const left = el.scrollLeft > 4
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }))
+  }, [])
   const keys = useMemo(() => {
     const whites: number[] = []
     const blacks: { midi: number; i: number }[] = []
@@ -37,7 +45,11 @@ export function Piano({ low, high, pressed, hint = null, wrong = null, marks = [
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const fit = (): void => setKeyW(Math.max(30, Math.min(46, Math.floor(el.clientWidth / count))))
+    const fit = (): void => {
+      const cs = getComputedStyle(el)
+      const inner = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      setKeyW(Math.max(30, Math.min(46, Math.floor(inner / count))))
+    }
     fit()
     const observer = new ResizeObserver(fit)
     observer.observe(el)
@@ -48,7 +60,8 @@ export function Piano({ low, high, pressed, hint = null, wrong = null, marks = [
     const el = ref.current
     if (!el) return
     el.scrollLeft = Math.max(0, (count * keyW - el.clientWidth) / 2)
-  }, [count, keyW])
+    updateEdges()
+  }, [count, keyW, updateEdges])
 
   useEffect(() => {
     const el = ref.current
@@ -121,8 +134,9 @@ export function Piano({ low, high, pressed, hint = null, wrong = null, marks = [
       .join(' ')
 
   return (
-    <div className="piano" ref={ref}>
-      <div className="piano-inner" style={{ '--kw': `${keyW}px`, '--n': count } as CSSProperties}>
+    <div className="piano-wrap">
+      <div className="piano" ref={ref} onScroll={updateEdges}>
+        <div className="piano-inner" style={{ '--kw': `${keyW}px`, '--n': count } as CSSProperties}>
         {keys.whites.map((midi, i) => (
           <div
             key={midi}
@@ -151,7 +165,10 @@ export function Piano({ low, high, pressed, hint = null, wrong = null, marks = [
             onPointerCancel={cancel(b.midi)}
           />
         ))}
+        </div>
       </div>
+      {edges.left && <div className="piano-fade left" />}
+      {edges.right && <div className="piano-fade right" />}
     </div>
   )
 }

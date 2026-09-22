@@ -33,6 +33,16 @@ describe('lessons', () => {
           for (const mark of step.piano.marks) expect(midis).toContain(mark)
         })
 
+        it(`${name}: a quiz has a figure of notes and a keyboard that shows them all`, () => {
+          if (!step.quiz) return
+          if (!step.score || !step.piano) throw new Error('quiz step without score or piano')
+          const midis = figureMidis(step.score)
+          expect(midis.length).toBeGreaterThan(1)
+          expect(new Set(midis).size).toBe(midis.length)
+          expect(step.score.measures.flatMap((m) => m.elements).every((el) => el.kind === 'note')).toBe(true)
+          expect(step.piano.marks).toEqual([])
+        })
+
         it(`${name}: accents and labels point at existing elements`, () => {
           const count = step.score?.measures.flatMap((m) => m.elements).length ?? 0
           for (const a of step.accent ?? []) expect(a).toBeLessThan(count)

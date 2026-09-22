@@ -44,6 +44,14 @@ describe('layoutScore', () => {
     expect(stem(8)).toBe('down')
   })
 
+  it('centres a whole rest in its bar', () => {
+    const bar = (value: 'w' | 'q'): IScore => ({ system: 'rhythm', key: 'C', timeSig: [4, 4], barlines: true, measures: [{ elements: [{ kind: 'rest', value, dots: 0, beats: value === 'w' ? 4 : 1, start: 0 }] }] })
+    const whole = layoutScore(bar('w'), sp)
+    const quarter = layoutScore(bar('q'), sp)
+    expect(whole.elements[0].x).toBeGreaterThan(quarter.elements[0].x + 5 * sp)
+    expect(whole.width).toBe(quarter.width)
+  })
+
   it('draws a natural only when shown is 0', () => {
     const glyphs = (shown: -1 | 0 | 1 | null) => layoutScore(single('treble', { ...whole('treble', 4), shown }), sp).elements[0].prims.filter((p) => p.t === 'glyph').length
     expect(glyphs(null)).toBe(1)

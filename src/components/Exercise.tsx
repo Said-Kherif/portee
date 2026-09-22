@@ -71,6 +71,7 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
   const [current, setCurrent] = useState(-1)
   const [result, setResult] = useState<IScoreResult | null>(null)
   const [pressed, setPressed] = useState<Set<number>>(() => new Set())
+  const [pulse, setPulse] = useState(-1)
   const [range] = useState(() => pianoRange(level))
   const phaseRef = useRef<Phase>('idle')
   const tapsRef = useRef<ITap[]>([])
@@ -96,6 +97,7 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
     const r = scoreTaps(t.onsets, tapsRef.current, pitched)
     setResult(r)
     setCurrent(-1)
+    setPulse(-1)
     setPhaseBoth('done')
     update((p) => recordSession(recordScore(p, level.id, r.score), { date: Date.now(), level: level.id, accuracy: r.score / 100, medianRt: 0 }))
   }, [level.id, pitched, setPhaseBoth, update])
@@ -105,6 +107,7 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
     if (!t) return
     const now = performance.now()
     const beat = (now - t.perfStart) / t.beatMs
+    setPulse(beat < 0 ? -1 : Math.floor(beat % BEATS_PER_MEASURE))
     if (beat < COUNT_IN) {
       setCount(Math.min(COUNT_IN, Math.max(1, Math.floor(beat) + 1)))
     } else {
@@ -261,7 +264,13 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
             </p>
           )}
           {phase === 'countin' && <div className="count">{count}</div>}
-          {phase === 'playing' && <div className="count playing">{'♩'}</div>}
+          {phase === 'playing' && (
+            <div className="beats" aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className={`beat ${i === pulse ? 'on' : ''}`} />
+              ))}
+            </div>
+          )}
           {phase === 'done' && result && (
             <div className="result">
               <div className="score-value">{result.score}&nbsp;%</div>

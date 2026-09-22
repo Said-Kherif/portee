@@ -24,7 +24,7 @@ Web app to learn sight-reading at the piano, in French. Solo personal project: t
 
 ## Navigation
 
-Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `#<levelId>/lecon` (lesson), `#stats`, `#settings`, `#gallery`. Level ids: `p1`–`p7` (pitch), `r1`–`r3` (rhythm), `f1`–`f2` (phrase). Selecting a level from Home opens its lesson first if it has never been seen.
+Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `#<levelId>/lecon` (lesson), `#stats`, `#settings`, `#gallery`. Level ids: `p1`–`p7` (pitch), `r1`–`r3` (rhythm), `f0`–`f2` (phrase). Selecting a level from Home opens its lesson first if it has never been seen. A row of "À travailler" in Stats opens the level that contains that note.
 
 ## Engine invariants
 
@@ -33,8 +33,10 @@ Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `
 - Key signatures: `KEYS` up to 3 sharps or 3 flats. `SHARP_POSITIONS` / `FLAT_POSITIONS` give the diatonic index of each accidental per clef.
 - Card id encodes clef, diatonic, shown accidental and key. `shown === 0` is an explicit natural, `null` means nothing drawn.
 - Scheduler: `SESSION_LENGTH` 30 notes per drill, level done at `PASS_ACCURACY` 0.95 and median reaction `PASS_RT` 1500 ms. Exercises: `EXERCISES_TO_PASS` 5 with average `PASS_SCORE` 85.
-- Rhythm: 4/4 only, cells in `CellKind`, generation in `generateMeasures`. Scoring windows `PERFECT_MS` 60, `GOOD_MS` 120, `WINDOW_MS` 200. Timestamps come from the touch-down instant, not from when the note sounds.
-- Score layout: `score/layout.ts` produces primitives from an `IScore`; `components/Staff.tsx` renders them as SVG with Bravura glyphs from `score/glyphs.ts`. Glyph font size = 4 spaces.
+- Rhythm: 4/4 only, cells in `CellKind`, generation in `generateMeasures`. Placement rules in `allowed()`: half notes, half rests and dotted quarters only on odd beats, whole and dotted half only on beat 1, no two rests in a row, and the whole rest `rw` only as a full silent bar that is not the first bar and does not follow another silent bar. Scoring windows `PERFECT_MS` 60, `GOOD_MS` 120, `WINDOW_MS` 200. Timestamps come from the touch-down instant, not from when the note sounds.
+- Keyed levels (p7): one session per key signature, in the order of `level.keys`. History is stored under `historyKey(levelId, key)` (`p7:G`), `nextKey()` gives the first key not yet validated, `levelStateOf()` aggregates (done when every key is done, `count` = keys done). Unkeyed levels keep `history[levelId]`.
+- Lessons: a step with `quiz: true` lights one key of the figure at random on the piano and the learner taps the matching note on the staff (`components/Lesson.tsx`); its `piano.marks` stays empty in the data. Level `f0` (five-finger position, quarters and halves) sits between the rhythm levels and `f1`.
+- Score layout: `score/layout.ts` produces primitives from an `IScore`; `components/Staff.tsx` renders them as SVG with Bravura glyphs from `score/glyphs.ts`. Glyph font size = 4 spaces. Labels are centred under the head using `headW`.
 - Progress persisted in `localStorage` under `portee.v1`, shape `IProgress` (version 1). Export and import go through `exportProgress` / `importProgress`.
 
 ## Piano input

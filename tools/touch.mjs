@@ -39,7 +39,7 @@ await send('Page.navigate', { url })
 await sleep(2500)
 
 const center = (sel) => evaluate(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
-const state = async () => JSON.parse(await evaluate(`JSON.stringify({ hint: document.querySelector('.hint')?.textContent.trim() ?? null, pressed: document.querySelectorAll('.key.pressed').length, scrollLeft: Math.round(document.querySelector('.piano').scrollLeft) })`))
+const state = async () => JSON.parse(await evaluate(`JSON.stringify({ hint: document.querySelector('.hint')?.textContent.trim() ?? null, meta: document.querySelector('.bar-meta')?.textContent.trim() ?? null, pressed: document.querySelectorAll('.key.pressed').length, scrollLeft: Math.round(document.querySelector('.piano').scrollLeft) })`))
 const touch = (type, pts) => send('Input.dispatchTouchEvent', { type, touchPoints: pts })
 const go = async (hash) => { await evaluate(`location.hash='${hash}'`); await sleep(700) }
 let failed = 0
@@ -65,7 +65,7 @@ await sleep(70)
 await touch('touchEnd', [])
 await sleep(400)
 const afterTap = await state()
-check('tap registers an answer', afterTap.hint !== '', `hint=${JSON.stringify(afterTap.hint)}`)
+check('tap registers an answer', afterTap.hint !== '' || afterTap.meta !== afterSwipe.meta, `hint=${JSON.stringify(afterTap.hint)} meta=${afterSwipe.meta} -> ${afterTap.meta}`)
 check('tap releases the key', afterTap.pressed === 0)
 
 await go('r1')
@@ -77,6 +77,14 @@ await sleep(10)
 const immediate = await state()
 await touch('touchEnd', [])
 check('non-scrollable keyboard responds immediately', immediate.pressed === 1, `pressed=${immediate.pressed} at 10ms`)
+
+await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 2, mobile: true })
+await sleep(400)
+for (const id of ['r1', 'f0']) {
+  await go(id)
+  const fit = JSON.parse(await evaluate(`(() => { const el = document.querySelector('.piano'); return JSON.stringify({ scroll: el.scrollWidth, client: el.clientWidth, fades: document.querySelectorAll('.piano-fade').length }) })()`))
+  check(`${id} keyboard fits on iPhone SE without fades`, fit.scroll <= fit.client && fit.fades === 0, `scroll=${fit.scroll} client=${fit.client} fades=${fit.fades}`)
+}
 
 ws.close(); chrome.kill()
 process.exit(failed ? 1 : 0)

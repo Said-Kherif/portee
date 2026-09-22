@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type KeyboardEvent } from 'react'
 import type { IScore, Prim } from '../score/layout'
 import { layoutScore } from '../score/layout'
 
@@ -23,25 +23,45 @@ export function Staff({ score, sp = 12, states = {}, labels = {}, className = ''
       viewBox={`0 0 ${layout.width} ${height}`}
       width={layout.width}
       height={height}
-      aria-hidden="true"
+      aria-hidden={onTap ? undefined : true}
+      role={onTap ? 'group' : undefined}
     >
       <g className="ink">
         {layout.statics.map((p, i) => (
           <PrimView key={i} p={p} sp={sp} />
         ))}
       </g>
-      {layout.elements.map((el) => (
-        <g key={el.index} className={`el ${states[el.index] ?? ''} ${onTap ? 'tappable' : ''}`} onClick={onTap ? () => onTap(el.index) : undefined}>
-          {el.prims.map((p, i) => (
-            <PrimView key={i} p={p} sp={sp} />
-          ))}
-          {labels[el.index] !== undefined && (
-            <text className="label" x={el.x + 0.6 * sp} y={labelY} textAnchor="middle" fontSize={1.3 * sp}>
-              {labels[el.index]}
-            </text>
-          )}
-        </g>
-      ))}
+      {layout.elements.map((el) => {
+        const tap = onTap ? () => onTap(el.index) : undefined
+        const onKey = tap
+          ? (e: KeyboardEvent<SVGGElement>) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return
+              e.preventDefault()
+              tap()
+            }
+          : undefined
+        return (
+          <g
+            key={el.index}
+            className={`el ${states[el.index] ?? ''} ${tap ? 'tappable' : ''}`}
+            onClick={tap}
+            onKeyDown={onKey}
+            role={tap ? 'button' : undefined}
+            tabIndex={tap ? 0 : undefined}
+            aria-label={tap ? (labels[el.index] ?? `Note ${el.index + 1}`) : undefined}
+          >
+            {tap && <rect className="hit" x={el.x - 0.6 * sp} y={el.y - 2.5 * sp} width={el.headW + 1.2 * sp} height={5 * sp} />}
+            {el.prims.map((p, i) => (
+              <PrimView key={i} p={p} sp={sp} />
+            ))}
+            {labels[el.index] !== undefined && (
+              <text className="label" x={el.x + el.headW / 2} y={labelY} textAnchor="middle" fontSize={1.3 * sp}>
+                {labels[el.index]}
+              </text>
+            )}
+          </g>
+        )
+      })}
     </svg>
   )
 }

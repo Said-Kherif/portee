@@ -10,6 +10,7 @@ export interface ILessonStep {
   names?: boolean
   labels?: Record<number, string>
   accent?: number[]
+  quiz?: boolean
   piano?: { low: number; high: number; marks: number[] }
 }
 
@@ -49,6 +50,9 @@ const w = (start: number): IElement => ({ kind: 'note', value: 'w', dots: 0, bea
 const e = (start: number, beam?: number): IElement => ({ kind: 'note', value: 'e', dots: 0, beats: 0.5, start, beam })
 const rq = (start: number): IElement => ({ kind: 'rest', value: 'q', dots: 0, beats: 1, start })
 const rh = (start: number): IElement => ({ kind: 'rest', value: 'h', dots: 0, beats: 2, start })
+const rw = (start: number): IElement => ({ kind: 'rest', value: 'w', dots: 0, beats: 4, start })
+const n = (value: 'q' | 'h' | 'w', start: number, d: number, dots: 0 | 1 = 0, clef: Clef = 'treble'): IElement => ({ kind: 'note', value, dots, beats: { q: 1, h: 2, w: 4 }[value] * (dots ? 1.5 : 1), start, clef, diatonic: d, shown: null })
+const melody = (measures: IMeasure[]): IScore => ({ system: 'treble', key: 'C', timeSig: [4, 4], barlines: true, measures })
 
 const T = (d: number, shown?: Accidental | null): INoteSpec => ({ clef: 'treble', d, shown })
 const B = (d: number, shown?: Accidental | null): INoteSpec => ({ clef: 'bass', d, shown })
@@ -141,6 +145,13 @@ export const LESSONS: ILesson[] = [
         accent: [1, 4],
         piano: { low: 60, high: 84, marks: [65, 67, 69, 71, 72, 74] },
       },
+      {
+        title: 'À l’envers',
+        text: ['Une touche s’allume sur le clavier : montre sur la portée la note qui lui correspond. Les neuf notes du palier y passent, dans le désordre.'],
+        score: pitches('treble', [T(2), T(3), T(4), T(5), T(6), T(7), T(8), T(9), T(10)], 'C', 2.6),
+        quiz: true,
+        piano: { low: 60, high: 84, marks: [] },
+      },
     ],
   },
   {
@@ -174,6 +185,13 @@ export const LESSONS: ILesson[] = [
         accent: [1, 4],
         piano: { low: 36, high: 60, marks: [47, 48, 50, 52, 53, 55] },
       },
+      {
+        title: 'À l’envers',
+        text: ['Une touche s’allume sur le clavier : montre sur la portée la note qui lui correspond. Les neuf notes du palier y passent, dans le désordre.'],
+        score: pitches('bass', [B(-10), B(-9), B(-8), B(-7), B(-6), B(-5), B(-4), B(-3), B(-2)], 'C', 2.6),
+        quiz: true,
+        piano: { low: 36, high: 60, marks: [] },
+      },
     ],
   },
   {
@@ -183,7 +201,7 @@ export const LESSONS: ILesson[] = [
         title: 'La zone entre les portées',
         text: [
           'Entre les deux portées, les notes s’écrivent avec des lignes supplémentaires, soit sous la clé de sol, soit au-dessus de la clé de fa. Le compositeur choisit selon la main qui joue.',
-          'Sous la clé de sol : ré4 collé sous la première ligne, do4 sur une ligne supplémentaire, si3 en dessous, la3 sur une deuxième ligne.',
+          'Sous la clé de sol, en montant : la3 sur une deuxième ligne supplémentaire, si3 juste au-dessus, do4 sur la première ligne supplémentaire, ré4 collé sous la portée, puis mi4 sur la première ligne de la portée.',
         ],
         score: pitches('grand', [T(-2), T(-1), T(0), T(1), T(2)]),
         names: true,
@@ -297,7 +315,7 @@ export const LESSONS: ILesson[] = [
         title: 'L’ordre des bémols',
         text: [
           'Les bémols : si, mi, la, ré, sol, do, fa. Un bémol, fa majeur. Deux, si bémol majeur. Trois, mi bémol majeur.',
-          'Astuce : l’avant-dernier bémol donne le nom de la tonalité.',
+          'Astuce : l’avant-dernier bémol donne le nom de la tonalité. Avec un seul bémol il n’y a pas d’avant-dernier : c’est fa majeur, à retenir à part.',
         ],
         score: pitches('grand', [], 'Eb'),
       },
@@ -305,7 +323,7 @@ export const LESSONS: ILesson[] = [
         title: 'Le bécarre dans l’armure',
         text: [
           'Quand le compositeur veut la touche blanche malgré l’armure, il écrit un bécarre devant la note. En sol majeur, un fa avec bécarre se joue fa naturel.',
-          'Dans ce palier, chaque série tire une tonalité et la garde. Regarde l’armure une fois au début, puis lis normalement.',
+          'Dans ce palier, les tonalités se travaillent une par une, dans l’ordre sol, ré, la, fa, si bémol, mi bémol, et chacune se valide séparément. Regarde l’armure une fois au début de la série, puis lis normalement.',
         ],
         score: pitches('treble', [T(3), T(3, 0)], 'G', 5),
         names: true,
@@ -378,11 +396,44 @@ export const LESSONS: ILesson[] = [
         labels: { 0: '1', 1: '2', 2: '3', 3: '4', 4: '1', 5: '3' },
       },
       {
+        title: 'La pause',
+        text: [
+          'La pause vaut quatre temps de silence, une mesure entière en 4/4. Elle s’accroche sous la quatrième ligne, alors que la demi-pause se pose sur la troisième.',
+          'Dans l’exercice, la dernière mesure peut être entièrement silencieuse : compte ses quatre temps sans rien taper, l’exercice se termine avec elle.',
+        ],
+        score: rhythm([{ elements: [q(0), q(1), h(2)] }, { elements: [rw(0)] }]),
+        labels: { 0: '1', 1: '2', 2: '3', 3: '1 2 3 4' },
+      },
+      {
         title: 'Garder la pulsation',
         text: [
           'Le piège du silence, c’est de repartir trop tôt. Le métronome continue, appuie-toi dessus et compte les temps du silence à voix basse.',
           'Une attaque pendant un silence est comptée comme une note en trop.',
         ],
+      },
+    ],
+  },
+  {
+    levelId: 'f0',
+    steps: [
+      {
+        title: 'Cinq doigts, cinq notes',
+        text: [
+          'Pose la main droite avec le pouce sur le do central : chaque doigt a sa touche blanche, du do4 au sol4. Les phrases de ce palier ne sortent pas de cette position.',
+          'Une note par doigt, sans déplacer la main : tes yeux restent sur la portée.',
+        ],
+        score: pitches('treble', [T(0), T(1), T(2), T(3), T(4)]),
+        names: true,
+        piano: { low: 60, high: 72, marks: [60, 62, 64, 65, 67] },
+      },
+      {
+        title: 'Hauteur et rythme ensemble',
+        text: [
+          'Chaque note répond à deux questions : quelle touche, et à quel moment. La hauteur se lit sur la portée, le moment sur la valeur de la note, noire, blanche, blanche pointée ou ronde, comme dans les exercices de rythme.',
+          'Une mesure de décompte, puis joue chaque note au moment de son attaque. Une fausse note est signalée d’une croix, une note en retard ou en avance par son écart en millisecondes.',
+        ],
+        score: melody([{ elements: [n('q', 0, 0), n('q', 1, 2), n('h', 2, 4)] }, { elements: [n('h', 0, 2, 1), n('q', 3, 0)] }]),
+        names: true,
       },
     ],
   },
@@ -401,7 +452,7 @@ export const LESSONS: ILesson[] = [
       {
         title: 'Avant de commencer',
         text: [
-          'Pendant la mesure de décompte, repère la première note et pose ta main. Les phrases de ce palier restent entre le do4 et le sol5, la main droite avec le pouce sur le do central est un bon point de départ.',
+          'Pendant la mesure de décompte, repère la première note et pose ta main. Les phrases de ce palier vont du do4 au sol5, plus large qu’une main : garde le pouce sur le do central comme point de départ et déplace la main quand la phrase monte.',
           'Une fausse note est signalée d’une croix, une note en retard ou en avance par son écart en millisecondes.',
         ],
         piano: { low: 60, high: 84, marks: [60, 62, 64, 65, 67] },
@@ -414,7 +465,7 @@ export const LESSONS: ILesson[] = [
       {
         title: 'La main gauche',
         text: [
-          'Même exercice en clé de fa. Les phrases vont du la2 au mi4, la main gauche avec l’auriculaire sur le do3 couvre l’essentiel.',
+          'Même exercice en clé de fa. Les phrases vont du la2 au mi4, plus large qu’une main : pars de l’auriculaire sur le do3 et déplace la main quand la phrase sort de la position.',
           'Les repères de la clé de fa sont le fa3 entre les points de la clé et le do3 dans le deuxième interligne.',
         ],
         score: pitches('bass', [B(-7), B(-6), B(-5), B(-4), B(-3)], 'C', 3),
