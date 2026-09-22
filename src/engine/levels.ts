@@ -59,7 +59,7 @@ function keyCards(clef: Clef, from: number, to: number, key: KeyId): ICard[] {
   const out: ICard[] = []
   for (let d = from; d <= to; d++) {
     out.push(makeCard(clef, d, null, key))
-    if (keyAlteration(key, letterAt(d)) !== 0) out.push(makeCard(clef, d, 0, key))
+    if (keyAlteration(key, letterAt(d)) !== 0) out.push({ ...makeCard(clef, d, 0, key), weight: 0.5 })
   }
   return out
 }

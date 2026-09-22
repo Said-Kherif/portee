@@ -42,7 +42,7 @@ export function weightOf(stat: ICardStat | undefined, focused: boolean, now: num
 export function pickCard(cards: ICard[], stats: Record<string, ICardStat>, focus: Set<string>, previousId: string | null): ICard {
   const pool = cards.length > 1 ? cards.filter((c) => c.id !== previousId) : cards
   const now = Date.now()
-  const weights = pool.map((c) => weightOf(stats[c.id], focus.has(c.id), now))
+  const weights = pool.map((c) => weightOf(stats[c.id], focus.has(c.id), now) * (c.weight ?? 1))
   const total = weights.reduce((a, b) => a + b, 0)
   let r = Math.random() * total
   for (let i = 0; i < pool.length; i++) {
@@ -71,12 +71,16 @@ export function median(values: number[]): number {
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
-export function pitchLevelState(history: IAnswer[]): ILevelState {
-  const recent = history.slice(-SESSION_LENGTH)
+export function sessionLengthOf(level: IPitchLevel): number {
+  return level.keys ? SESSION_LENGTH : Math.max(SESSION_LENGTH, level.cards.length)
+}
+
+export function pitchLevelState(history: IAnswer[], length = SESSION_LENGTH): ILevelState {
+  const recent = history.slice(-length)
   if (recent.length === 0) return { status: 'new', accuracy: 0, medianRt: 0, count: 0 }
   const accuracy = recent.filter((a) => a.ok).length / recent.length
   const medianRt = median(recent.map((a) => a.rt))
-  const done = recent.length >= SESSION_LENGTH && accuracy >= PASS_ACCURACY && medianRt <= PASS_RT
+  const done = recent.length >= length && accuracy >= PASS_ACCURACY && medianRt <= PASS_RT
   return { status: done ? 'done' : 'progress', accuracy, medianRt, count: recent.length }
 }
 
@@ -101,7 +105,7 @@ export function nextKey(level: IPitchLevel, progress: IProgress): KeyId | null {
 
 export function levelStateOf(level: Level, progress: IProgress): ILevelState {
   if (level.kind !== 'pitch') return exerciseLevelState(progress.scores[level.id] ?? [])
-  if (!level.keys) return pitchLevelState(progress.history[level.id] ?? [])
+  if (!level.keys) return pitchLevelState(progress.history[level.id] ?? [], sessionLengthOf(level))
   const states = level.keys.map((k) => pitchLevelState(progress.history[historyKey(level.id, k)] ?? []))
   const done = states.filter((s) => s.status === 'done').length
   if (done === level.keys.length) return { status: 'done', accuracy: 1, medianRt: 0, count: done }

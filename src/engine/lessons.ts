@@ -198,6 +198,17 @@ export const LESSONS: ILesson[] = [
     levelId: 'p4',
     steps: [
       {
+        title: 'Secondes et tierces',
+        text: [
+          'D’une ligne à l’interligne voisin, ou l’inverse, c’est une seconde : la touche blanche d’à côté. D’une ligne à la ligne suivante, ou d’un interligne au suivant, c’est une tierce : on saute une touche blanche.',
+          'Compter les crans depuis un repère, c’est compter des secondes. Repérer une tierce d’un coup d’œil, ligne à ligne ou interligne à interligne, va deux fois plus vite.',
+        ],
+        score: pitches('treble', [T(4), T(5), T(4), T(6)]),
+        names: true,
+        accent: [1, 3],
+        piano: { low: 60, high: 72, marks: [67, 69, 71] },
+      },
+      {
         title: 'La zone entre les portées',
         text: [
           'Entre les deux portées, les notes s’écrivent avec des lignes supplémentaires, soit sous la clé de sol, soit au-dessus de la clé de fa. Le compositeur choisit selon la main qui joue.',

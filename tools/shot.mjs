@@ -63,6 +63,7 @@ await send('Emulation.setFocusEmulationEnabled', { enabled: true })
 await send('Page.navigate', { url })
 await sleep(1800)
 for (const a of actions) {
+  if (a.dark !== undefined) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: a.dark ? 'dark' : 'light' }] })
   if (a.wait) await sleep(a.wait)
   if (a.tap) await tap(a.tap)
   if (a.key) {

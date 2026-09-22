@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { levelById } from './levels'
+import { levelById, LEVELS } from './levels'
 import { makeCard } from './notes'
 import { defaultProgress } from './progress'
-import { EXERCISES_TO_PASS, exerciseLevelState, historyKey, levelStateOf, median, nextKey, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, updateStat } from './scheduler'
+import { EXERCISES_TO_PASS, exerciseLevelState, historyKey, levelStateOf, median, nextKey, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, sessionLengthOf, updateStat } from './scheduler'
 
 const answers = (n: number, ok = true, rt = 1000) => Array.from({ length: n }, () => ({ ok, rt }))
 
@@ -106,5 +106,42 @@ describe('keyed levels', () => {
     const p = defaultProgress()
     p.history[p7.id] = done
     expect(levelStateOf(p7, p).status).toBe('new')
+  })
+})
+
+describe('sessionLengthOf', () => {
+  it('covers every card of an unkeyed level and stays at the default otherwise', () => {
+    for (const l of LEVELS) {
+      if (l.kind !== 'pitch') continue
+      if (l.keys) expect(sessionLengthOf(l)).toBe(SESSION_LENGTH)
+      else expect(sessionLengthOf(l)).toBeGreaterThanOrEqual(l.cards.length)
+    }
+    const p1 = levelById('p1')
+    if (p1?.kind !== 'pitch') throw new Error('p1 must be a pitch level')
+    expect(sessionLengthOf(p1)).toBe(SESSION_LENGTH)
+  })
+
+  it('needs the whole longer session to validate a large level', () => {
+    const p5 = levelById('p5')
+    if (p5?.kind !== 'pitch') throw new Error('p5 must be a pitch level')
+    const length = sessionLengthOf(p5)
+    expect(length).toBeGreaterThan(SESSION_LENGTH)
+    expect(pitchLevelState(answers(SESSION_LENGTH), length).status).toBe('progress')
+    expect(pitchLevelState(answers(length), length).status).toBe('done')
+  })
+})
+
+describe('card weight', () => {
+  it('never picks a zero-weight card', () => {
+    const a = makeCard('treble', 2, null)
+    const b = { ...makeCard('treble', 4, null), weight: 0 }
+    for (let i = 0; i < 200; i++) expect(pickCard([b, a], {}, new Set(), null).id).toBe(a.id)
+  })
+
+  it('halves the naturals of keyed levels only', () => {
+    const p7 = levelById('p7')
+    if (p7?.kind !== 'pitch') throw new Error('p7 must be a pitch level')
+    for (const c of p7.cards) expect(c.weight ?? 1).toBe(c.shown === 0 ? 0.5 : 1)
+    expect(p7.cards.some((c) => c.shown === 0)).toBe(true)
   })
 })

@@ -17,7 +17,7 @@ Web app to learn sight-reading at the piano, in French. Solo personal project: t
 - Interfaces prefixed `I`, types prefixed `T` or plain type aliases as in `engine/`. Props typed directly on the function parameter, never `React.FC`.
 - No comments in code. No README unless asked.
 - Relative imports (`../engine/notes`), no path aliases.
-- Plain CSS in `src/styles.css` with custom properties on `:root`. No CSS-in-JS, no inline `style={{}}` except the CSS variables the Piano needs (`--kw`, `--n`, `--i`).
+- Plain CSS in `src/styles.css` with custom properties on `:root`. No CSS-in-JS, no inline `style={{}}` except the CSS variables the Piano needs (`--kw`, `--n`, `--i`). Dark mode is a `prefers-color-scheme: dark` block that only redefines the tokens; never hardcode a colour outside `:root`. Wide screens (`min-width: 700px`) centre the scroll views at 680 px and enlarge the piano keys and drill staff; short screens (`max-height: 500px`, landscape phones) shrink the piano and put the exercise staff and status side by side.
 - Copy is French with typographic apostrophes (`’`). Note names are `do ré mi fa sol la si`, octave appended without space (`do4`, `ré5`).
 - Icons are inline stroke SVGs in `components/Icons.tsx`. No emoji.
 - Native controls only: `<button>`, `<input>`, with `aria-label` on icon-only buttons.
@@ -32,7 +32,7 @@ Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `
 - `MIDDLE_LINE` = `{ treble: 6, bass: -6 }` (si4 and ré3). Staff y position = `top + 2sp - (d - middleLine) * sp / 2`.
 - Key signatures: `KEYS` up to 3 sharps or 3 flats. `SHARP_POSITIONS` / `FLAT_POSITIONS` give the diatonic index of each accidental per clef.
 - Card id encodes clef, diatonic, shown accidental and key. `shown === 0` is an explicit natural, `null` means nothing drawn.
-- Scheduler: `SESSION_LENGTH` 30 notes per drill, level done at `PASS_ACCURACY` 0.95 and median reaction `PASS_RT` 1500 ms. Exercises: `EXERCISES_TO_PASS` 5 with average `PASS_SCORE` 85.
+- Scheduler: `SESSION_LENGTH` 30 notes per drill, raised to the level's card count by `sessionLengthOf()` for unkeyed levels with more cards (p5, p6), so a level cannot be validated without every card being drawable. Level done at `PASS_ACCURACY` 0.95 and median reaction `PASS_RT` 1500 ms. Exercises: `EXERCISES_TO_PASS` 5 with average `PASS_SCORE` 85. A card may carry `weight` (naturals in keyed levels are 0.5) which multiplies its draw probability in `pickCard`.
 - Rhythm: 4/4 only, cells in `CellKind`, generation in `generateMeasures`. Placement rules in `allowed()`: half notes, half rests and dotted quarters only on odd beats, whole and dotted half only on beat 1, no two rests in a row, and the whole rest `rw` only as a full silent bar that is not the first bar and does not follow another silent bar. Scoring windows `PERFECT_MS` 60, `GOOD_MS` 120, `WINDOW_MS` 200. Timestamps come from the touch-down instant, not from when the note sounds.
 - Keyed levels (p7): one session per key signature, in the order of `level.keys`. History is stored under `historyKey(levelId, key)` (`p7:G`), `nextKey()` gives the first key not yet validated, `levelStateOf()` aggregates (done when every key is done, `count` = keys done). Unkeyed levels keep `history[levelId]`.
 - Lessons: a step with `quiz: true` lights one key of the figure at random on the piano and the learner taps the matching note on the staff (`components/Lesson.tsx`); its `piano.marks` stays empty in the data. Level `f0` (five-finger position, quarters and halves) sits between the rhythm levels and `f1`.
@@ -51,6 +51,9 @@ The design lives on a Claude Design canvas titled "Portée" (`https://claude.ai/
 
 - `tools/shot.mjs <url> <WxH> <actions.json>`: headless Chrome via CDP. Actions: `wait`, `tap` (touch), `key`, `eval`, `text`, `shot`, `full`. Prints console errors and failed requests.
 - `tools/shots.sh`: builds, serves, captures every screen at 390×844 and 375×667 into `shots/<date>/`.
-- `tools/touch.mjs <url>`: piano gesture regression (swipe must not register a note, tap must, non-scrollable keyboard is immediate). Prints PASS or FAIL per case.
+- `tools/touch.mjs <url>`: piano gesture regression (swipe must not register a note, tap must, non-scrollable keyboard is immediate, 8-key keyboards fit on iPhone SE). Prints PASS or FAIL per case.
+- `tools/session.mjs <url>`: plays a whole drill session of p2 by reading each note off the staff SVG and tapping its key, then checks the summary screen and the saved progress. Prints PASS or FAIL per case.
+- `shot.mjs` actions also take `dark: true` to capture with `prefers-color-scheme: dark`. Check 844×390 (landscape phone) and 1024×768 (tablet) after layout changes.
+- CI: `.github/workflows/ci.yml` runs `npm test` and the build on every push and pull request, and deploys `dist/` to GitHub Pages from `main`.
 - A fresh headless profile has empty progress, so Home shows every level as new and Stats is empty.
 - Test on 390×844 and on 375×667 (iPhone SE) for every visual change.

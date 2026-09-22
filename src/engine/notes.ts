@@ -11,6 +11,7 @@ export interface ICard {
   shown: Accidental | null
   key: KeyId
   midi: number
+  weight?: number
 }
 
 export const LETTERS: Letter[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B']

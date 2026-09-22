@@ -5,7 +5,7 @@ import { KEYS } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
 import { isStreakAlive } from '../engine/progress'
 import type { ILevelState } from '../engine/scheduler'
-import { EXERCISES_TO_PASS, historyKey, levelStateOf, nextKey, pitchLevelState, SESSION_LENGTH } from '../engine/scheduler'
+import { EXERCISES_TO_PASS, historyKey, levelStateOf, nextKey, pitchLevelState, SESSION_LENGTH, sessionLengthOf } from '../engine/scheduler'
 import { IconChart, IconCheck, IconFlame, IconSliders } from './Icons'
 
 interface IHomeProps {
@@ -26,7 +26,7 @@ function statusText(level: Level, state: ILevelState, progress: IProgress): stri
     return `${state.count}/${level.keys.length} tonalités${key ? ` · ${KEYS[key].label}` : ''}${detail}`
   }
   if (level.kind === 'pitch') {
-    return `${state.count}/${SESSION_LENGTH} · ${percent(state.accuracy)} · ${seconds(state.medianRt)}`
+    return `${state.count}/${sessionLengthOf(level)} · ${percent(state.accuracy)} · ${seconds(state.medianRt)}`
   }
   return `${state.count}/${EXERCISES_TO_PASS} · ${percent(state.accuracy)}`
 }

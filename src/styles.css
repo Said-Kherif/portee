@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light dark;
   --bg: #f4efe6;
   --card: #fffcf7;
   --ink: #1b1814;
@@ -1084,4 +1085,129 @@ button.link svg {
 
 .figure-hint.done {
   color: var(--ok);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17140f;
+    --card: #211d18;
+    --ink: #f1ebe0;
+    --muted: #a69d8f;
+    --line: #372f27;
+    --accent: #85a3f5;
+    --accent-soft: #232f52;
+    --ok: #79c795;
+    --ok-soft: #1d3527;
+    --bad: #ef8479;
+    --bad-soft: #452420;
+    --meh: #e0aa52;
+    --piano-bg: #0f0d0b;
+    --heat0: #79c795;
+    --heat1: #b5cf5a;
+    --heat2: #e0aa52;
+    --heat3: #ef8479;
+  }
+
+  .piano-fade.left {
+    background: linear-gradient(to right, var(--piano-bg), rgba(15, 13, 11, 0));
+  }
+
+  .piano-fade.right {
+    background: linear-gradient(to left, var(--piano-bg), rgba(15, 13, 11, 0));
+  }
+}
+
+@media (min-width: 700px) {
+  .scroll {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .piano-inner {
+    height: 190px;
+  }
+}
+
+@media (max-height: 500px) {
+  .bar {
+    min-height: 44px;
+    padding-top: 2px;
+  }
+
+  .piano-inner {
+    height: 100px;
+  }
+
+  .hint {
+    height: 26px;
+    margin-top: 2px;
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .drill .staff {
+    max-height: 42vh;
+  }
+
+  .drill .staff.grand {
+    max-height: 50vh;
+  }
+
+  .exercise-status {
+    min-height: 56px;
+  }
+
+  .beats {
+    height: 40px;
+  }
+
+  .count {
+    font-size: 40px;
+  }
+}
+
+@media (min-width: 700px) {
+  .drill .staff {
+    width: min(100%, 520px);
+    max-height: min(50vh, 520px);
+  }
+
+  .drill .staff.grand {
+    max-height: min(56vh, 600px);
+  }
+}
+
+@media (max-height: 500px) {
+  .exercise .stage {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: center;
+    padding: 4px 16px;
+  }
+
+  .exercise .staff {
+    width: 58%;
+    max-width: none;
+  }
+
+  .exercise-status {
+    width: 40%;
+    min-height: 0;
+    margin-left: 2%;
+  }
+
+  .exercise .actions {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .exercise .actions.secondary {
+    min-height: 0;
+    margin-top: 0;
+  }
+
+  .exercise .actions button {
+    min-height: 40px;
+  }
 }

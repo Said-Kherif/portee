@@ -48,7 +48,8 @@ export function Piano({ low, high, pressed, hint = null, wrong = null, marks = [
     const fit = (): void => {
       const cs = getComputedStyle(el)
       const inner = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
-      setKeyW(Math.max(30, Math.min(46, Math.floor(inner / count))))
+      const widest = el.clientWidth >= 700 ? 62 : 46
+      setKeyW(Math.max(30, Math.min(widest, Math.floor(inner / count))))
     }
     fit()
     const observer = new ResizeObserver(fit)

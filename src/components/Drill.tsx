@@ -8,7 +8,7 @@ import { cardName, KEYS } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
 import { recordSession } from '../engine/progress'
 import type { IAnswer } from '../engine/scheduler'
-import { historyKey, levelStateOf, median, nextKey, PASS_ACCURACY, PASS_RT, pickCard, pitchLevelState, SESSION_LENGTH, updateStat } from '../engine/scheduler'
+import { historyKey, levelStateOf, median, nextKey, PASS_ACCURACY, PASS_RT, pickCard, pitchLevelState, sessionLengthOf, updateStat } from '../engine/scheduler'
 import { setMidiHandlers } from '../midi/bus'
 import { useComputerKeys } from '../midi/computerKeys'
 import type { IScore } from '../score/layout'
@@ -85,6 +85,7 @@ function freshState(level: IPitchLevel, progress: IProgress): IState {
 
 export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps) {
   const [range] = useState(() => pianoRange(level))
+  const length = sessionLengthOf(level)
   const [pressed, setPressed] = useState<Set<number>>(() => new Set())
   const statsRef = useRef(progress.cards)
   statsRef.current = progress.cards
@@ -107,24 +108,24 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
       const key = historyKey(level.id, level.keys ? stateRef.current.sessionKey : null)
       update((p) =>
         recordSession(
-          { ...p, history: { ...p.history, [key]: [...(p.history[key] ?? []), ...answers].slice(-SESSION_LENGTH) } },
+          { ...p, history: { ...p.history, [key]: [...(p.history[key] ?? []), ...answers].slice(-length) } },
           { date: Date.now(), level: level.id, accuracy, medianRt },
         ),
       )
     },
-    [level, update],
+    [length, level, update],
   )
 
   const next = useCallback(() => {
     const s = stateRef.current
-    if (s.i + 1 >= SESSION_LENGTH) {
+    if (s.i + 1 >= length) {
       finish(s.results)
       commit({ ...s, finished: true })
       return
     }
     const card = pickCard(cardsFor(level, s.sessionKey), statsRef.current, level.focus, s.card.id)
     commit({ ...s, i: s.i + 1, card, shownAt: performance.now(), status: 'waiting', wrongKey: null })
-  }, [commit, finish, level])
+  }, [commit, finish, length, level])
 
   const handleOn = useCallback(
     (midi: number, at?: number) => {
@@ -206,7 +207,7 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
           {level.keys ? ` · ${KEYS[sessionKey].label}` : ''}
         </div>
         <div className="bar-meta">
-          {i + 1} / {SESSION_LENGTH}
+          {i + 1} / {length}
         </div>
       </header>
       <main className="stage">
@@ -245,10 +246,11 @@ function Summary({ level, sessionKey, results, notation, progress, onAgain, onEx
   const accuracy = results.filter((r) => r.ok).length / Math.max(1, results.length)
   const medianRt = median(results.map((r) => r.rt))
   const keyed = !!level.keys
-  const state = pitchLevelState(progress.history[historyKey(level.id, keyed ? sessionKey : null)] ?? [])
+  const length = sessionLengthOf(level)
+  const state = pitchLevelState(progress.history[historyKey(level.id, keyed ? sessionKey : null)] ?? [], length)
   const whole = levelStateOf(level, progress)
   const next = keyed ? nextKey(level, progress) : null
-  let verdict = `Objectif : ${percent(PASS_ACCURACY)} de justesse et un temps médian sous ${seconds(PASS_RT)} sur les ${SESSION_LENGTH} dernières notes.`
+  let verdict = `Objectif : ${percent(PASS_ACCURACY)} de justesse et un temps médian sous ${seconds(PASS_RT)} sur les ${length} dernières notes.`
   if (whole.status === 'done') verdict = 'Palier validé.'
   else if (state.status === 'done') verdict = keyed ? `${KEYS[sessionKey].label} validé${next ? `, prochaine tonalité : ${KEYS[next].label}` : ''}.` : 'Palier validé.'
   const perCard = new Map<string, { card: ICard; n: number; errors: number; rt: number }>()
