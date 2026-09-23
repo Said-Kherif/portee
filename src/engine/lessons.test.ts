@@ -26,7 +26,7 @@ describe('lessons', () => {
         const name = `${i + 1}. ${step.title}`
 
         it(`${name}: piano marks come from the figure and fit the keyboard`, () => {
-          if (!step.score || !step.piano || step.score.system === 'rhythm') return
+          if (!step.score || !step.piano) return
           const midis = figureMidis(step.score)
           for (const m of midis) expect(m).toBeGreaterThanOrEqual(step.piano.low)
           for (const m of midis) expect(m).toBeLessThanOrEqual(step.piano.high)

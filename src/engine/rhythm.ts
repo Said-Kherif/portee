@@ -64,7 +64,7 @@ function allowed(cell: CellKind, start: number, remaining: number, prevWasRest: 
   if ((cell === 'h' || cell === 'rh' || cell === 'q.e') && start % 2 !== 0) return false
   if ((cell === 'w' || cell === 'h.') && start !== 0) return false
   if (cell === 'rw' && (start !== 0 || !silentOk)) return false
-  if ((cell === 'rq' || cell === 'rh') && prevWasRest) return false
+  if ((cell === 'rq' || cell === 'rh' || cell === 'rw') && prevWasRest) return false
   return true
 }
 
@@ -120,13 +120,15 @@ export function generateMeasures(vocab: CellKind[], count: number): IMeasure[] {
 function buildMeasures(cells: CellKind[], count: number, nextBeam: () => number): IMeasure[] {
   const measures: IMeasure[] = []
   for (let m = 0; m < count; m++) {
-    const silentOk = m > 0 && !isPause(measures[m - 1].elements)
+    const previous = m > 0 ? measures[m - 1].elements : []
+    const endsWithRest = previous.length > 0 && previous[previous.length - 1].kind === 'rest'
+    const silentOk = m > 0 && !endsWithRest
     let elements: IElement[] = []
     let guard = 0
     do {
       elements = []
       let start = 0
-      let prevRest = false
+      let prevRest = endsWithRest
       while (start < BEATS_PER_MEASURE) {
         const options = cells.filter((c) => allowed(c, start, BEATS_PER_MEASURE - start, prevRest, silentOk))
         const cell: CellKind = options.length > 0 ? pick(options) : 'q'
@@ -170,6 +172,31 @@ export function assignMelody(measures: IMeasure[], clef: Clef, low: number, high
   return measures
 }
 
+export type HandsMode = 'alternate' | 'together'
+
+const CHORD_STEPS = [0, 2, 4]
+
+export function assignHands(measures: IMeasure[], mode: HandsMode, treble: [number, number], bass: [number, number]): IMeasure[] {
+  if (mode === 'together') {
+    assignMelody(measures, 'treble', treble[0], treble[1])
+    const roots: number[] = []
+    for (let d = bass[0]; d <= bass[1]; d++) if (CHORD_STEPS.includes(((d % 7) + 7) % 7)) roots.push(d)
+    return measures.map((m) => {
+      const d = roots.length > 0 ? pick(roots) : bass[0]
+      const left: IElement = { kind: 'note', value: 'w', dots: 0, beats: 4, start: 0, clef: 'bass', diatonic: d, shown: null, midi: midiAt(d, 0) }
+      return { elements: [left, ...m.elements] }
+    })
+  }
+  const startTreble = Math.random() < 0.5
+  return measures.map((m, i) => {
+    const clef: Clef = (i % 2 === 0) === startTreble ? 'treble' : 'bass'
+    const [low, high] = clef === 'treble' ? treble : bass
+    assignMelody([m], clef, low, high)
+    const rest: IElement = { kind: 'rest', value: 'w', dots: 0, beats: 4, start: 0, clef: clef === 'treble' ? 'bass' : 'treble' }
+    return { elements: [rest, ...m.elements] }
+  })
+}
+
 export function onsetsOf(measures: IMeasure[]): IOnset[] {
   const out: IOnset[] = []
   let index = 0
@@ -196,29 +223,39 @@ export function startsOf(measures: IMeasure[]): { index: number; beat: number }[
 
 export function scoreTaps(onsets: ITimedOnset[], taps: ITap[], pitched: boolean): IScoreResult {
   const used = new Set<number>()
-  const results: IOnsetResult[] = []
-  for (const o of onsets) {
+  const chosen = new Map<number, number>()
+  const closest = (o: ITimedOnset, accept: (tap: ITap) => boolean): number => {
     let best = -1
     let bestAbs = Infinity
     taps.forEach((tap, i) => {
-      if (used.has(i)) return
+      if (used.has(i) || !accept(tap)) return
       const d = Math.abs(tap.t - o.time)
       if (d <= WINDOW_MS && d < bestAbs) {
         best = i
         bestAbs = d
       }
     })
-    if (best < 0) {
-      results.push({ index: o.index, delta: null, grade: 'miss', pitchOk: null })
-      continue
-    }
-    used.add(best)
+    return best
+  }
+  const claim = (matchPitch: boolean): void => {
+    onsets.forEach((o, k) => {
+      if (chosen.has(k)) return
+      const best = closest(o, (tap) => !matchPitch || tap.midi === o.midi)
+      if (best < 0) return
+      used.add(best)
+      chosen.set(k, best)
+    })
+  }
+  if (pitched) claim(true)
+  claim(false)
+  const results: IOnsetResult[] = onsets.map((o, k) => {
+    const best = chosen.get(k)
+    if (best === undefined) return { index: o.index, delta: null, grade: 'miss', pitchOk: null }
     const delta = taps[best].t - o.time
     const a = Math.abs(delta)
     const grade: Grade = a <= PERFECT_MS ? 'perfect' : a <= GOOD_MS ? 'good' : 'late'
-    const pitchOk = pitched ? taps[best].midi === o.midi : null
-    results.push({ index: o.index, delta, grade, pitchOk })
-  }
+    return { index: o.index, delta, grade, pitchOk: pitched ? taps[best].midi === o.midi : null }
+  })
   const extra = taps.length - used.size
   let points = 0
   for (const r of results) {

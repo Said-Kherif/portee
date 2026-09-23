@@ -7,6 +7,7 @@
   --line: #e2dacc;
   --accent: #2e5bd7;
   --accent-soft: #e3e9fa;
+  --series: #2e5bd7;
   --ok: #22703e;
   --ok-soft: #dcefe2;
   --bad: #c2392f;
@@ -1096,6 +1097,7 @@ button.link svg {
     --line: #372f27;
     --accent: #85a3f5;
     --accent-soft: #232f52;
+    --series: #6f8ef0;
     --ok: #79c795;
     --ok-soft: #1d3527;
     --bad: #ef8479;
@@ -1210,4 +1212,224 @@ button.link svg {
   .exercise .actions button {
     min-height: 40px;
   }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ear-controls {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.ear-controls button svg {
+  flex: none;
+  margin-right: 8px;
+}
+
+.trend {
+  margin: 0 0 12px;
+  padding: 12px 12px 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.trend-head {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+
+.trend-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.trend-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.trend-plot {
+  position: relative;
+  border-radius: 8px;
+  touch-action: pan-y;
+  outline: none;
+}
+
+.trend-plot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.trend-plot svg {
+  display: block;
+}
+
+.trend-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.trend-grid.goal {
+  stroke: var(--muted);
+}
+
+.trend-tick,
+.trend-axis {
+  fill: var(--muted);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-area {
+  fill: var(--series);
+  fill-opacity: 0.1;
+  stroke: none;
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-dot {
+  fill: var(--series);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+
+.trend-end {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trend-cross {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.trend-tip rect {
+  fill: var(--card);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.trend-tip .v {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.trend-tip .d {
+  fill: var(--muted);
+  font-family: var(--sans);
+  font-size: 11px;
+}
+
+.table-toggle {
+  padding-left: 0;
+}
+
+.trend-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-table th,
+.trend-table td {
+  padding: 8px 4px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+
+.trend-table th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
+.trend-table thead th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.onboarding .bar {
+  border-bottom: none;
+  padding: 6px 16px;
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+
+.onboarding .scroll {
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding-top: 12px;
+}
+
+.onboarding .lesson-piano {
+  margin: 0 0 14px;
+}
+
+.onboarding-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.onboarding-list li:last-child {
+  border-bottom: none;
+}
+
+.onboarding-list li > span:first-child {
+  font-family: var(--serif);
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.onboarding-list li > span:last-child {
+  font-size: 14px;
+  text-align: right;
+}
+
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0 4px;
+}
+
+.onboarding-dots span {
+  width: 8px;
+  height: 8px;
+  margin: 0 5px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.onboarding-dots span.on {
+  background: var(--accent);
 }

@@ -145,3 +145,16 @@ describe('card weight', () => {
     expect(p7.cards.some((c) => c.shown === 0)).toBe(true)
   })
 })
+
+describe('level overrides', () => {
+  it('honours a fixed session length', () => {
+    const p5 = levelById('p5')
+    if (p5?.kind !== 'pitch') throw new Error('p5 must be a pitch level')
+    expect(sessionLengthOf({ ...p5, length: 12 })).toBe(12)
+  })
+
+  it('validates with a custom time limit', () => {
+    expect(pitchLevelState(answers(SESSION_LENGTH, true, 2500)).status).toBe('progress')
+    expect(pitchLevelState(answers(SESSION_LENGTH, true, 2500), SESSION_LENGTH, 3000).status).toBe('done')
+  })
+})

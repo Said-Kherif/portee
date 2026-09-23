@@ -5,8 +5,25 @@ let sampled: ReturnType<typeof SplendidGrandPiano> | null = null
 let sampledReady = false
 const active = new Map<number, StopFn>()
 
+interface IAudioSessionNavigator {
+  audioSession?: { type: string }
+}
+
+function preferPlayback(): void {
+  const session = (navigator as unknown as IAudioSessionNavigator).audioSession
+  if (!session) return
+  try {
+    session.type = 'playback'
+  } catch {
+    return
+  }
+}
+
 export function getContext(): AudioContext {
-  if (!ctx) ctx = new AudioContext()
+  if (!ctx) {
+    preferPlayback()
+    ctx = new AudioContext()
+  }
   return ctx
 }
 

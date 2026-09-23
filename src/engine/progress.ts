@@ -24,6 +24,7 @@ export interface IProgress {
   streak: { lastDay: string; count: number }
   settings: ISettings
   lessonsSeen: string[]
+  onboarded: boolean
 }
 
 const KEY = 'portee.v1'
@@ -40,6 +41,7 @@ export function defaultProgress(): IProgress {
     streak: { lastDay: '', count: 0 },
     settings: { notation: 'fr', keyLabels: 'auto', bpm: 70 },
     lessonsSeen: [],
+    onboarded: false,
   }
 }
 

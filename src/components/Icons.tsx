@@ -69,3 +69,24 @@ export function IconForward({ size = 18 }: IIconProps) {
     </Svg>
   )
 }
+
+export function IconRepeat({ size = 18 }: IIconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M17 2l3 3-3 3" />
+      <path d="M4 11V9a4 4 0 0 1 4-4h12" />
+      <path d="M7 22l-3-3 3-3" />
+      <path d="M20 13v2a4 4 0 0 1-4 4H4" />
+    </Svg>
+  )
+}
+
+export function IconSpeaker({ size = 20 }: IIconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M11 5L6 9H3v6h3l5 4V5z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+    </Svg>
+  )
+}

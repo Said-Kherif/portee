@@ -1,12 +1,12 @@
 import { percent, seconds } from '../engine/format'
 import type { Level } from '../engine/levels'
-import { LEVELS } from '../engine/levels'
+import { LEVELS, reviewedToday, reviewLevel } from '../engine/levels'
 import { KEYS } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
 import { isStreakAlive } from '../engine/progress'
 import type { ILevelState } from '../engine/scheduler'
 import { EXERCISES_TO_PASS, historyKey, levelStateOf, nextKey, pitchLevelState, SESSION_LENGTH, sessionLengthOf } from '../engine/scheduler'
-import { IconChart, IconCheck, IconFlame, IconSliders } from './Icons'
+import { IconChart, IconCheck, IconFlame, IconRepeat, IconSliders } from './Icons'
 
 interface IHomeProps {
   progress: IProgress
@@ -33,11 +33,14 @@ function statusText(level: Level, state: ILevelState, progress: IProgress): stri
 
 export function Home({ progress, onSelect, onLesson, onStats, onSettings }: IHomeProps) {
   const groups = [
-    { title: 'Lecture', levels: LEVELS.filter((l) => l.kind === 'pitch') },
+    { title: 'Lecture', levels: LEVELS.filter((l) => l.kind === 'pitch' && !l.ear) },
     { title: 'Rythme', levels: LEVELS.filter((l) => l.kind === 'rhythm') },
     { title: 'Phrases', levels: LEVELS.filter((l) => l.kind === 'phrase') },
+    { title: 'Oreille', levels: LEVELS.filter((l) => l.kind === 'pitch' && !!l.ear) },
   ]
   const streak = isStreakAlive(progress.streak) ? progress.streak.count : 0
+  const review = reviewLevel(progress)
+  const reviewDone = reviewedToday(progress)
 
   return (
     <div className="screen home">
@@ -59,6 +62,21 @@ export function Home({ progress, onSelect, onLesson, onStats, onSettings }: IHom
         </div>
       </header>
       <main className="scroll">
+        {review && (
+          <section>
+            <h2>Aujourd’hui</h2>
+            <div className={`level review ${reviewDone ? 'done' : 'recommended'}`}>
+              <button className="level-main" onClick={() => onSelect(review)}>
+                <span className="level-num">{reviewDone ? <IconCheck /> : <IconRepeat />}</span>
+                <span className="level-body">
+                  <span className="level-title">{review.title}</span>
+                  <span className="level-sub">{`${review.cards.length} notes déjà vues, les plus fragiles d’abord`}</span>
+                  {reviewDone ? <span className="level-status">Faite aujourd’hui</span> : <span className="level-tag">À faire</span>}
+                </span>
+              </button>
+            </div>
+          </section>
+        )}
         {groups.map((g) => {
           let recommended = false
           return (

@@ -98,5 +98,48 @@ await sleep(800)
 const again = await evaluate(`document.querySelector('.bar-meta')?.textContent ?? ''`)
 check('a new session starts from the summary', again.trim().startsWith('1 /'), again.trim())
 
+await evaluate(`location.hash=''`)
+await sleep(800)
+const review = JSON.parse(await evaluate(`JSON.stringify({ card: !!document.querySelector('.level.review'), title: document.querySelector('.level.review .level-title')?.textContent ?? '', sub: document.querySelector('.level.review .level-sub')?.textContent ?? '' })`))
+check('home offers the daily review once notes were seen', review.card && review.title === 'Révision du jour', review.sub)
+await tap('.level.review .level-main')
+await sleep(800)
+const reviewBar = JSON.parse(await evaluate(`JSON.stringify({ title: document.querySelector('.bar-title')?.textContent ?? '', meta: document.querySelector('.bar-meta')?.textContent.trim() ?? '', hash: location.hash })`))
+check('the review opens as a drill of 30 notes', reviewBar.title === 'Révision du jour' && reviewBar.meta === '1 / 30' && reviewBar.hash === '#review', `${reviewBar.title} ${reviewBar.meta} ${reviewBar.hash}`)
+
+const cardsBefore = Number(await evaluate(`Object.keys(JSON.parse(localStorage.getItem('portee.v1')).cards).length`))
+await evaluate(`location.hash='e1'`)
+await sleep(300)
+const earStart = JSON.parse(await evaluate(`JSON.stringify({ heads: document.querySelectorAll('.drill .staff g.el').length, button: document.querySelector('.ear-controls button')?.textContent ?? '' })`))
+check('the ear drill hides the note and offers to listen', earStart.heads === 0 && earStart.button.includes('coute'), `heads=${earStart.heads} button=${earStart.button}`)
+await tap('[data-midi="61"]')
+await sleep(120)
+const early = JSON.parse(await evaluate(`JSON.stringify({ hint: document.querySelector('.hint').textContent.trim(), meta: document.querySelector('.bar-meta').textContent.trim() })`))
+check('a key pressed before the note sounds is ignored', early.hint === '' && early.meta === '1 / 30', `hint=${JSON.stringify(early.hint)} ${early.meta}`)
+await sleep(900)
+if ((await evaluate(`document.querySelector('.ear-controls button')?.textContent ?? ''`)).includes('Écouter')) {
+  await tap('.ear-controls button')
+  await sleep(1000)
+}
+let earAnswers = 0
+let revealed = true
+for (let k = 0; k < 30; k++) {
+  if (!(await tap('[data-midi="61"]'))) break
+  await sleep(150)
+  const shown = Number(await evaluate(`document.querySelectorAll('.drill .staff g.el').length`))
+  revealed = revealed && shown === 1
+  const hint = await evaluate(`document.querySelector('.key.hint')?.dataset.midi ?? null`)
+  if (!hint) break
+  await tap(`[data-midi="${hint}"]`)
+  earAnswers++
+  await sleep(1400)
+}
+check('every ear card was answered after hearing it', earAnswers === 30, `${earAnswers}/30`)
+check('a wrong answer reveals the note on the staff', revealed)
+const earSummary = JSON.parse(await evaluate(`JSON.stringify({ shown: !!document.querySelector('.summary'), verdict: document.querySelector('.summary .muted')?.textContent ?? '' })`))
+check('the ear summary uses the relaxed time limit', earSummary.shown && earSummary.verdict.includes('3,0'), earSummary.verdict)
+const earSaved = JSON.parse(await evaluate(`JSON.stringify((() => { const p = JSON.parse(localStorage.getItem('portee.v1')); return { history: (p.history.e1 ?? []).length, cards: Object.keys(p.cards).length } })())`))
+check('ear answers are saved without touching reading stats', earSaved.history === 30 && earSaved.cards === cardsBefore, `history=${earSaved.history} cards=${cardsBefore}->${earSaved.cards}`)
+
 ws.close(); chrome.kill()
 process.exit(failed ? 1 : 0)

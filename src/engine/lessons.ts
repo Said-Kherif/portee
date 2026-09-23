@@ -52,7 +52,10 @@ const rq = (start: number): IElement => ({ kind: 'rest', value: 'q', dots: 0, be
 const rh = (start: number): IElement => ({ kind: 'rest', value: 'h', dots: 0, beats: 2, start })
 const rw = (start: number): IElement => ({ kind: 'rest', value: 'w', dots: 0, beats: 4, start })
 const n = (value: 'q' | 'h' | 'w', start: number, d: number, dots: 0 | 1 = 0, clef: Clef = 'treble'): IElement => ({ kind: 'note', value, dots, beats: { q: 1, h: 2, w: 4 }[value] * (dots ? 1.5 : 1), start, clef, diatonic: d, shown: null })
-const melody = (measures: IMeasure[]): IScore => ({ system: 'treble', key: 'C', timeSig: [4, 4], barlines: true, measures })
+const ne = (start: number, d: number, beam?: number): IElement => ({ kind: 'note', value: 'e', dots: 0, beats: 0.5, start, beam, clef: 'treble', diatonic: d, shown: null })
+const pause = (clef: Clef): IElement => ({ kind: 'rest', value: 'w', dots: 0, beats: 4, start: 0, clef })
+const melody = (measures: IMeasure[], beatWidth?: number): IScore => ({ system: 'treble', key: 'C', timeSig: [4, 4], barlines: true, beatWidth, measures })
+const grand = (measures: IMeasure[]): IScore => ({ system: 'grand', key: 'C', timeSig: [4, 4], barlines: true, measures })
 
 const T = (d: number, shown?: Accidental | null): INoteSpec => ({ clef: 'treble', d, shown })
 const B = (d: number, shown?: Accidental | null): INoteSpec => ({ clef: 'bass', d, shown })
@@ -65,10 +68,9 @@ export const LESSONS: ILesson[] = [
         title: 'La portée',
         text: [
           'Cinq lignes, quatre interlignes. Une note est posée soit sur une ligne, soit dans un interligne, jamais entre les deux.',
-          'Plus la note est haute sur la portée, plus la touche est à droite sur le clavier. Chaque ligne ou interligne correspond à une touche blanche.',
+          'Plus la note est haute sur la portée, plus la touche est à droite sur le clavier. Chaque ligne ou interligne correspond à une touche blanche. La clé, qui donne leur nom aux notes, arrive à l’étape suivante.',
         ],
-        score: pitches('treble', [T(2), T(3), T(4), T(5), T(6)]),
-        names: true,
+        score: pitches('rhythm', [T(2), T(3), T(4), T(5), T(6)]),
         piano: { low: 60, high: 72, marks: [64, 65, 67, 69, 71] },
       },
       {
@@ -454,11 +456,13 @@ export const LESSONS: ILesson[] = [
       {
         title: 'Lire deux choses à la fois',
         text: [
-          'Chaque note répond à deux questions : quelle touche, et à quel moment. La hauteur se lit sur la portée comme dans les paliers de lecture, le moment se lit sur la valeur de la note.',
+          'La même lecture que dans Cinq notes, sur une étendue plus large : la hauteur se lit sur la portée, le moment sur la valeur de la note. Les croches par deux et la noire pointée, vues dans les exercices de rythme, s’y ajoutent.',
           'Lis en avance : pendant que tu joues une note, tes yeux sont déjà sur la suivante.',
         ],
-        score: pitches('treble', [T(4), T(5), T(6), T(7)], 'C', 3),
-        names: true,
+        score: melody([
+          { elements: [n('q', 0, 4), ne(1, 5, 1), ne(1.5, 6, 1), n('h', 2, 7)] },
+          { elements: [n('q', 0, 8, 1), ne(1.5, 7), n('h', 2, 4)] },
+        ]),
       },
       {
         title: 'Avant de commencer',
@@ -488,6 +492,96 @@ export const LESSONS: ILesson[] = [
         text: [
           'Le rythme se lit exactement comme pour la main droite. Anticipe la note suivante, garde le métronome dans l’oreille et laisse passer une fausse note sans t’arrêter : la phrase continue.',
         ],
+      },
+    ],
+  },
+  {
+    levelId: 'f3',
+    steps: [
+      {
+        title: 'Une mesure pour chaque main',
+        text: [
+          'Sur la grande portée, la clé de sol est pour la main droite et la clé de fa pour la main gauche. Dans ce palier, chaque mesure est pour une seule main.',
+          'Pendant ce temps, l’autre portée affiche une pause : cette main se repose et compte ses quatre temps.',
+        ],
+        score: grand([
+          { elements: [pause('bass'), n('q', 0, 0), n('q', 1, 1), n('h', 2, 2)] },
+          { elements: [pause('treble'), n('h', 0, -3, 0, 'bass'), n('h', 2, -7, 0, 'bass')] },
+        ]),
+        names: true,
+        piano: { low: 48, high: 67, marks: [48, 60] },
+      },
+      {
+        title: 'Les deux positions',
+        text: [
+          'Place les deux mains avant de commencer : le pouce droit sur le do central, l’auriculaire gauche sur le do3. Chaque main garde ses cinq touches, seuls les yeux passent d’une portée à l’autre.',
+          'Pendant la mesure de décompte, repère la portée qui commence. Sur l’écran, joue avec un pouce de chaque côté.',
+        ],
+        piano: { low: 48, high: 67, marks: [48, 50, 52, 53, 55, 60, 62, 64, 65, 67] },
+      },
+    ],
+  },
+  {
+    levelId: 'f4',
+    steps: [
+      {
+        title: 'Lire à la verticale',
+        text: [
+          'Deux notes alignées l’une au-dessus de l’autre se jouent en même temps. Les deux notes en bleu tombent ensemble sur le premier temps.',
+          'La main gauche tient une ronde pendant toute la mesure, la main droite joue la mélodie par-dessus. Attaque les deux ensemble, puis laisse la gauche tenir.',
+        ],
+        score: grand([
+          { elements: [n('w', 0, -7, 0, 'bass'), n('q', 0, 2), n('q', 1, 1), n('h', 2, 0)] },
+          { elements: [n('w', 0, -3, 0, 'bass'), n('q', 0, 1), n('q', 1, 2), n('h', 2, 1)] },
+        ]),
+        accent: [0, 1],
+        piano: { low: 48, high: 67, marks: [48, 55, 60, 62, 64] },
+      },
+      {
+        title: 'Chaque main compte',
+        text: [
+          'Chaque note est jugée séparément. Si une main rate son attaque, l’autre continue : ne t’arrête pas.',
+          'Avec un piano numérique branché en MIDI, les deux mains jouent sur tes vraies touches. Sur l’écran, pose un pouce de chaque côté.',
+        ],
+        piano: { low: 48, high: 67, marks: [48, 60] },
+      },
+    ],
+  },
+  {
+    levelId: 'e1',
+    steps: [
+      {
+        title: 'Écouter avant de lire',
+        text: [
+          'Ici, la note ne s’affiche pas : tu l’entends. Le do central sonne d’abord comme repère, puis la note à trouver. Joue-la sur le clavier.',
+          'Une fois ta réponse donnée, la note apparaît sur la portée : l’oreille, les yeux et la main apprennent ensemble.',
+        ],
+        score: pitches('treble', [T(0), T(2), T(4), T(7)]),
+        names: true,
+        piano: { low: 60, high: 72, marks: [60, 64, 67, 72] },
+      },
+      {
+        title: 'Comparer au repère',
+        text: [
+          'Compare chaque note au do de départ : plus elle est aiguë, plus la touche est à droite. Le do aigu sonne comme le do de départ, une octave plus haut.',
+          'Tu peux réécouter autant de fois que tu veux. Le temps compté part de la note à trouver, pas du repère.',
+        ],
+        piano: { low: 60, high: 72, marks: [60, 72] },
+      },
+    ],
+  },
+  {
+    levelId: 'e2',
+    steps: [
+      {
+        title: 'La gamme de do',
+        text: [
+          'Les huit notes de la gamme, du do central au do aigu. Chante-les dans ta tête en montant : do, ré, mi, fa, sol, la, si, do.',
+          'Pour trouver une note, remonte la gamme depuis le repère jusqu’à ce qu’elle sonne pareil.',
+        ],
+        score: pitches('treble', [T(0), T(1), T(2), T(3), T(4), T(5), T(6), T(7)], 'C', 3),
+        names: true,
+        piano: { low: 60, high: 72, marks: [60, 62, 64, 65, 67, 69, 71, 72] },
       },
     ],
   },

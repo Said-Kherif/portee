@@ -1,26 +1,33 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { preloadAudio, unlockAudio } from './audio/piano'
 import { Drill } from './components/Drill'
 import { Exercise } from './components/Exercise'
 import { Home } from './components/Home'
 import { Lesson } from './components/Lesson'
+import { Onboarding } from './components/Onboarding'
 import { Settings } from './components/Settings'
 import { Stats } from './components/Stats'
 import { Gallery } from './components/Gallery'
 import type { Level } from './engine/levels'
 import { lessonFor } from './engine/lessons'
-import { levelById } from './engine/levels'
+import { levelById, REVIEW_ID, reviewLevel } from './engine/levels'
+import type { IProgress } from './engine/progress'
 import { useProgress } from './engine/progress'
 import { emitNoteOff, emitNoteOn } from './midi/bus'
 import { useMidi } from './midi/webmidi'
 
 type View = { name: 'home' } | { name: 'level'; level: Level } | { name: 'lesson'; level: Level } | { name: 'stats' } | { name: 'settings' } | { name: 'gallery' }
 
-function viewFromHash(): View {
+function levelFromId(id: string, progress: IProgress): Level | undefined {
+  if (id === REVIEW_ID) return reviewLevel(progress) ?? undefined
+  return levelById(id)
+}
+
+function viewFromHash(progress: IProgress): View {
   const hash = window.location.hash.replace('#', '')
   if (hash === 'stats' || hash === 'settings' || hash === 'gallery') return { name: hash }
   const [id, sub] = hash.split('/')
-  const level = levelById(id)
+  const level = levelFromId(id, progress)
   if (!level) return { name: 'home' }
   return sub === 'lecon' ? { name: 'lesson', level } : { name: 'level', level }
 }
@@ -34,7 +41,9 @@ function hashOf(view: View): string {
 
 export function App() {
   const [progress, update] = useProgress()
-  const [view, setView] = useState<View>(viewFromHash)
+  const progressRef = useRef(progress)
+  progressRef.current = progress
+  const [view, setView] = useState<View>(() => viewFromHash(progress))
   const [fontReady, setFontReady] = useState(false)
   const midi = useMidi(emitNoteOn, emitNoteOff)
 
@@ -68,7 +77,7 @@ export function App() {
   }, [view])
 
   useEffect(() => {
-    const onHash = (): void => setView(viewFromHash())
+    const onHash = (): void => setView(viewFromHash(progressRef.current))
     window.addEventListener('popstate', onHash)
     window.addEventListener('hashchange', onHash)
     return () => {
@@ -85,12 +94,14 @@ export function App() {
     else openLevel(level)
   }
   const currentLesson = view.name === 'lesson' ? lessonFor(view.level.id) : undefined
+  const firstRun = !progress.onboarded && progress.sessions.length === 0 && progress.lessonsSeen.length === 0
 
   if (!fontReady) return <div className="app" />
 
   return (
     <div className="app">
-      {view.name === 'home' && (
+      {view.name === 'home' && firstRun && <Onboarding notation={progress.settings.notation} onDone={() => update((p) => ({ ...p, onboarded: true }))} />}
+      {view.name === 'home' && !firstRun && (
         <Home
           progress={progress}
           onSelect={select}

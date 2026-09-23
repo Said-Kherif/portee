@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { noteOff as audioOff, noteOn as audioOn } from '../audio/piano'
+import { getContext, noteOff as audioOff, noteOn as audioOn, playNote, unlockAudio } from '../audio/piano'
 import { percent, seconds } from '../engine/format'
+import { lessonFor } from '../engine/lessons'
 import type { IPitchLevel } from '../engine/levels'
-import { pianoRange } from '../engine/levels'
+import { pianoRange, REVIEW_ID } from '../engine/levels'
 import type { ICard, KeyId, Notation } from '../engine/notes'
 import { cardName, KEYS } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
@@ -12,7 +13,7 @@ import { historyKey, levelStateOf, median, nextKey, PASS_ACCURACY, PASS_RT, pick
 import { setMidiHandlers } from '../midi/bus'
 import { useComputerKeys } from '../midi/computerKeys'
 import type { IScore } from '../score/layout'
-import { IconBack, IconClose } from './Icons'
+import { IconBack, IconClose, IconSpeaker } from './Icons'
 import { Piano } from './Piano'
 import { Staff } from './Staff'
 
@@ -41,11 +42,14 @@ interface IState {
   results: IResult[]
   finished: boolean
   sessionKey: KeyId
+  heard: boolean
 }
 
 const NEXT_DELAY = 380
+const REFERENCE = 60
+const PROMPT_GAP = 750
 
-function scoreFor(card: ICard, system: IPitchLevel['system']): IScore {
+function scoreFor(card: ICard, system: IPitchLevel['system'], hidden: boolean): IScore {
   return {
     system,
     key: card.key,
@@ -53,16 +57,12 @@ function scoreFor(card: ICard, system: IPitchLevel['system']): IScore {
     barlines: false,
     measures: [
       {
-        elements: [
-          { kind: 'note', value: 'q', dots: 0, beats: 1, start: 0, clef: card.clef, diatonic: card.diatonic, shown: card.shown, midi: card.midi },
-        ],
+        elements: hidden
+          ? []
+          : [{ kind: 'note', value: 'q', dots: 0, beats: 1, start: 0, clef: card.clef, diatonic: card.diatonic, shown: card.shown, midi: card.midi }],
       },
     ],
   }
-}
-
-function pickKey(level: IPitchLevel, progress: IProgress): KeyId {
-  return nextKey(level, progress) ?? 'C'
 }
 
 function cardsFor(level: IPitchLevel, key: KeyId): ICard[] {
@@ -70,22 +70,24 @@ function cardsFor(level: IPitchLevel, key: KeyId): ICard[] {
 }
 
 function freshState(level: IPitchLevel, progress: IProgress): IState {
-  const sessionKey = pickKey(level, progress)
+  const sessionKey = nextKey(level, progress) ?? 'C'
   return {
     i: 0,
-    card: pickCard(cardsFor(level, sessionKey), progress.cards, level.focus, null),
+    card: pickCard(cardsFor(level, sessionKey), level.ear ? {} : progress.cards, level.focus, null),
     shownAt: performance.now(),
     status: 'waiting',
     wrongKey: null,
     results: [],
     finished: false,
     sessionKey,
+    heard: !level.ear,
   }
 }
 
 export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps) {
   const [range] = useState(() => pianoRange(level))
   const length = sessionLengthOf(level)
+  const ear = !!level.ear
   const [pressed, setPressed] = useState<Set<number>>(() => new Set())
   const statsRef = useRef(progress.cards)
   statsRef.current = progress.cards
@@ -94,6 +96,7 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
   const [state, setState] = useState<IState>(() => freshState(level, progress))
   const stateRef = useRef(state)
   const timer = useRef<number | null>(null)
+  const promptTimer = useRef<number | null>(null)
 
   const commit = useCallback((next: IState) => {
     stateRef.current = next
@@ -123,9 +126,23 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
       commit({ ...s, finished: true })
       return
     }
-    const card = pickCard(cardsFor(level, s.sessionKey), statsRef.current, level.focus, s.card.id)
-    commit({ ...s, i: s.i + 1, card, shownAt: performance.now(), status: 'waiting', wrongKey: null })
-  }, [commit, finish, length, level])
+    const card = pickCard(cardsFor(level, s.sessionKey), ear ? {} : statsRef.current, level.focus, s.card.id)
+    commit({ ...s, i: s.i + 1, card, shownAt: performance.now(), status: 'waiting', wrongKey: null, heard: !ear })
+  }, [commit, ear, finish, length, level])
+
+  const prompt = useCallback(() => {
+    if (!ear) return
+    unlockAudio()
+    if (promptTimer.current) window.clearTimeout(promptTimer.current)
+    playNote(REFERENCE, 600)
+    promptTimer.current = window.setTimeout(() => {
+      promptTimer.current = null
+      const s = stateRef.current
+      if (s.finished) return
+      playNote(s.card.midi, 900)
+      if (!s.heard) commit({ ...s, heard: true, shownAt: performance.now() })
+    }, PROMPT_GAP)
+  }, [commit, ear])
 
   const handleOn = useCallback(
     (midi: number, at?: number) => {
@@ -136,12 +153,12 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
         return n
       })
       const s = stateRef.current
-      if (s.finished || s.status === 'right') return
+      if (s.finished || s.status === 'right' || !s.heard) return
       const card = s.card
+      const rt = Math.max(0, (at ?? performance.now()) - s.shownAt)
       if (midi === card.midi) {
         if (s.status === 'waiting') {
-          const rt = (at ?? performance.now()) - s.shownAt
-          update((p) => ({ ...p, cards: { ...p.cards, [card.id]: updateStat(p.cards[card.id], true, rt) } }))
+          if (!ear) update((p) => ({ ...p, cards: { ...p.cards, [card.id]: updateStat(p.cards[card.id], true, rt) } }))
           commit({ ...s, status: 'right', results: [...s.results, { card, ok: true, rt }] })
         } else {
           commit({ ...s, status: 'right', wrongKey: null })
@@ -150,14 +167,13 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
         return
       }
       if (s.status === 'waiting') {
-        const rt = performance.now() - s.shownAt
-        update((p) => ({ ...p, cards: { ...p.cards, [card.id]: updateStat(p.cards[card.id], false, rt) } }))
+        if (!ear) update((p) => ({ ...p, cards: { ...p.cards, [card.id]: updateStat(p.cards[card.id], false, rt) } }))
         commit({ ...s, status: 'wrong', wrongKey: midi, results: [...s.results, { card, ok: false, rt }] })
       } else {
         commit({ ...s, wrongKey: midi })
       }
     },
-    [commit, next, update],
+    [commit, ear, next, update],
   )
 
   const handleOff = useCallback((midi: number) => {
@@ -177,19 +193,27 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
 
   useComputerKeys({ enabled: true, onNoteOn: handleOn, onNoteOff: handleOff })
 
+  useEffect(() => {
+    if (!ear || state.finished) return
+    if (getContext().state === 'running') prompt()
+  }, [ear, prompt, state.finished, state.i])
+
   useEffect(
     () => () => {
       if (timer.current) window.clearTimeout(timer.current)
+      if (promptTimer.current) window.clearTimeout(promptTimer.current)
     },
     [],
   )
 
   const restart = (): void => commit(freshState(level, progressRef.current))
 
-  const { card, status, i, results, finished, sessionKey } = state
+  const { card, status, i, results, finished, sessionKey, heard } = state
   const notation = progress.settings.notation
-  const labels = progress.settings.keyLabels === 'on' || (progress.settings.keyLabels === 'auto' && level.id === 'p1')
-  const score = useMemo(() => scoreFor(card, level.system), [card, level.system])
+  const keyLabels = progress.settings.keyLabels
+  const labels = keyLabels === 'on' || (keyLabels === 'auto' && (level.id === 'p1' || ear))
+  const hidden = ear && status === 'waiting'
+  const score = useMemo(() => scoreFor(card, level.system, hidden), [card, level.system, hidden])
 
   if (finished) {
     return <Summary level={level} sessionKey={sessionKey} results={results} notation={notation} progress={progress} onAgain={restart} onExit={onExit} onLesson={onLesson} />
@@ -213,8 +237,16 @@ export function Drill({ level, progress, update, onExit, onLesson }: IDrillProps
       <main className="stage">
         <Staff score={score} sp={16} states={{ 0: status }} className={level.system} />
         <div className={`hint ${status}`}>
-          {status === 'wrong' ? `C’était ${cardName(card, notation)}` : status === 'right' ? cardName(card, notation) : ' '}
+          {status === 'wrong' ? `C’était ${cardName(card, notation)}` : status === 'right' ? cardName(card, notation) : ' '}
         </div>
+        {hidden && (
+          <div className="ear-controls">
+            <button className={heard ? '' : 'primary'} onClick={prompt}>
+              <IconSpeaker />
+              {heard ? 'Réécouter' : 'Écouter'}
+            </button>
+          </div>
+        )}
       </main>
       <Piano
         low={range[0]}
@@ -247,12 +279,10 @@ function Summary({ level, sessionKey, results, notation, progress, onAgain, onEx
   const medianRt = median(results.map((r) => r.rt))
   const keyed = !!level.keys
   const length = sessionLengthOf(level)
-  const state = pitchLevelState(progress.history[historyKey(level.id, keyed ? sessionKey : null)] ?? [], length)
+  const passRt = level.passRt ?? PASS_RT
+  const state = pitchLevelState(progress.history[historyKey(level.id, keyed ? sessionKey : null)] ?? [], length, passRt)
   const whole = levelStateOf(level, progress)
   const next = keyed ? nextKey(level, progress) : null
-  let verdict = `Objectif : ${percent(PASS_ACCURACY)} de justesse et un temps médian sous ${seconds(PASS_RT)} sur les ${length} dernières notes.`
-  if (whole.status === 'done') verdict = 'Palier validé.'
-  else if (state.status === 'done') verdict = keyed ? `${KEYS[sessionKey].label} validé${next ? `, prochaine tonalité : ${KEYS[next].label}` : ''}.` : 'Palier validé.'
   const perCard = new Map<string, { card: ICard; n: number; errors: number; rt: number }>()
   for (const r of results) {
     const a = perCard.get(r.card.id) ?? { card: r.card, n: 0, errors: 0, rt: 0 }
@@ -263,9 +293,13 @@ function Summary({ level, sessionKey, results, notation, progress, onAgain, onEx
   }
   const weak = [...perCard.values()]
     .map((a) => ({ ...a, avg: a.rt / a.n }))
-    .filter((a) => a.errors > 0 || a.avg > PASS_RT)
+    .filter((a) => a.errors > 0 || a.avg > passRt)
     .sort((a, b) => b.errors - a.errors || b.avg - a.avg)
     .slice(0, 5)
+  let verdict = `Objectif : ${percent(PASS_ACCURACY)} de justesse et un temps médian sous ${seconds(passRt)} sur les ${length} dernières notes.`
+  if (whole.status === 'done') verdict = 'Palier validé.'
+  else if (state.status === 'done') verdict = keyed ? `${KEYS[sessionKey].label} validé${next ? `, prochaine tonalité : ${KEYS[next].label}` : ''}.` : 'Palier validé.'
+  if (level.id === REVIEW_ID) verdict = weak.length > 0 ? 'Révision faite. Les notes ci-dessous reviendront plus souvent.' : 'Révision faite, aucune note fragile aujourd’hui.'
 
   return (
     <div className="screen summary">
@@ -298,7 +332,7 @@ function Summary({ level, sessionKey, results, notation, progress, onAgain, onEx
                 <li key={a.card.id}>
                   <span>
                     {cardName(a.card, notation)}
-                    <span className="muted small"> · {a.card.clef === 'treble' ? 'clé de sol' : 'clé de fa'}</span>
+                    {!level.ear && <span className="muted small"> · {a.card.clef === 'treble' ? 'clé de sol' : 'clé de fa'}</span>}
                   </span>
                   <span className="muted">
                     {a.errors > 0 ? `${a.errors} erreur${a.errors > 1 ? 's' : ''} · ` : ''}
@@ -315,9 +349,11 @@ function Summary({ level, sessionKey, results, notation, progress, onAgain, onEx
           </button>
           <button onClick={onExit}>Terminer</button>
         </div>
-        <button className="link" onClick={onLesson}>
-          Revoir la leçon
-        </button>
+        {lessonFor(level.id) && (
+          <button className="link" onClick={onLesson}>
+            Revoir la leçon
+          </button>
+        )}
       </main>
     </div>
   )

@@ -4,13 +4,14 @@ Web app to learn sight-reading at the piano, in French. Solo personal project: t
 
 ## Stack
 
-- Vite 8, React 19, TypeScript 7, no router, no state library, no test runner.
+- Vite 8, React 19, TypeScript 7, no router, no state library. Vitest for tests.
+- Live at https://said-kherif.github.io/portee/ (GitHub Pages, deployed by CI from `main`). Repository: https://github.com/Said-Kherif/portee (public). Commits use the GitHub noreply address set in the repo git config.
 - Node 22 via nvm (`.nvmrc`). Run `source ~/.nvm/nvm.sh && nvm use` before any npm or node command.
 - `npm run build` = `tsc --noEmit && vite build`. `npm test` = Vitest on `src/**/*.test.ts` (engine, score layout, lesson consistency). Run both after every change; tsc also type-checks the tests.
-- `npx vite preview --port 4173 --strictPort` serves `dist/`. `vite.config.ts` allows `.ngrok-free.app` hosts for phone testing.
+- `npx vite preview --port 4173 --strictPort` serves `dist/`. `vite.config.ts` also allows `.ngrok-free.app` hosts, should a local build ever need exposing. To test on the phone, deploy with the `/deploy` skill.
 - Fonts in `public/fonts/`: Bravura (SMuFL music glyphs), Instrument Sans (UI), Instrument Serif (titles, big numbers). All self-hosted, declared in `index.html`.
 - PWA: `public/manifest.webmanifest`, icons in `public/icons/` (regenerate with `npm run icons`, headless Chrome renders the SVG in `tools/icons.mjs`). `vite.config.ts` emits `dist/sw.js` at build: it precaches the shell, fonts and hashed assets under a content-hashed cache name, serves navigations from cache, and caches the piano samples from `smpldsnds.github.io` on first use. `src/main.tsx` registers it in production only and reloads once when a new version takes control. Never edit `dist/sw.js` by hand.
-- Audio: `preloadAudio()` runs at mount (creates the context, starts loading samples), `unlockAudio()` resumes it on the first gesture. `navigator.storage.persist()` is requested at startup.
+- Audio: `preloadAudio()` runs at mount (creates the context, starts loading samples), `unlockAudio()` resumes it on the first gesture. `getContext()` sets `navigator.audioSession.type = 'playback'` where Safari exposes it, so the piano still sounds with the iPhone ringer on silent (not verifiable in headless Chrome). `navigator.storage.persist()` is requested at startup.
 
 ## Conventions
 
@@ -24,7 +25,7 @@ Web app to learn sight-reading at the piano, in French. Solo personal project: t
 
 ## Navigation
 
-Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `#<levelId>/lecon` (lesson), `#stats`, `#settings`, `#gallery`. Level ids: `p1`–`p7` (pitch), `r1`–`r3` (rhythm), `f0`–`f2` (phrase). Selecting a level from Home opens its lesson first if it has never been seen. A row of "À travailler" in Stats opens the level that contains that note.
+Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `#<levelId>/lecon` (lesson), `#stats`, `#settings`, `#gallery`. Level ids: `p1`–`p7` (reading), `r1`–`r3` (rhythm), `f0`–`f4` (phrase, `f3`–`f4` with both hands), `e1`–`e2` (ear), plus the virtual `review` built at runtime. Selecting a level from Home opens its lesson first if it has never been seen. A row of "À travailler" in Stats opens the reading level that contains that note. On a fresh profile (not `onboarded`, no session, no lesson seen) Home is replaced by the three-step `Onboarding`.
 
 ## Engine invariants
 
@@ -35,9 +36,14 @@ Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `
 - Scheduler: `SESSION_LENGTH` 30 notes per drill, raised to the level's card count by `sessionLengthOf()` for unkeyed levels with more cards (p5, p6), so a level cannot be validated without every card being drawable. Level done at `PASS_ACCURACY` 0.95 and median reaction `PASS_RT` 1500 ms. Exercises: `EXERCISES_TO_PASS` 5 with average `PASS_SCORE` 85. A card may carry `weight` (naturals in keyed levels are 0.5) which multiplies its draw probability in `pickCard`.
 - Rhythm: 4/4 only, cells in `CellKind`, generation in `generateMeasures`. Placement rules in `allowed()`: half notes, half rests and dotted quarters only on odd beats, whole and dotted half only on beat 1, no two rests in a row, and the whole rest `rw` only as a full silent bar that is not the first bar and does not follow another silent bar. Scoring windows `PERFECT_MS` 60, `GOOD_MS` 120, `WINDOW_MS` 200. Timestamps come from the touch-down instant, not from when the note sounds.
 - Keyed levels (p7): one session per key signature, in the order of `level.keys`. History is stored under `historyKey(levelId, key)` (`p7:G`), `nextKey()` gives the first key not yet validated, `levelStateOf()` aggregates (done when every key is done, `count` = keys done). Unkeyed levels keep `history[levelId]`.
-- Lessons: a step with `quiz: true` lights one key of the figure at random on the piano and the learner taps the matching note on the staff (`components/Lesson.tsx`); its `piano.marks` stays empty in the data. Level `f0` (five-finger position, quarters and halves) sits between the rhythm levels and `f1`.
+- Lessons: a step with `quiz: true` lights one key of the figure at random on the piano and the learner taps the matching note on the staff (`components/Lesson.tsx`); its `piano.marks` stays empty in the data and its figure holds notes only. Level `f0` (five-finger position, quarters, halves, dotted halves and wholes) sits between the rhythm levels and `f1`. The very first lesson step draws a staff without clef (`system: 'rhythm'`) because clefs come in the next step.
+- Rests across the barline: `buildMeasures` carries `prevRest` into the next bar, so a bar never starts with a rest after a bar that ended with one, and the whole rest `rw` always follows an attack.
+- Two hands: a phrase level with `hands` is drawn on the grand staff. `alternate` (f3) gives each bar to one hand and puts a whole rest on the idle staff; `together` (f4) holds a left-hand whole note on do, mi or sol under the right-hand melody. Both use do4–sol4 for the right hand and do3–sol3 for the left, and `pianoRange` returns exactly do3–sol4 so the keyboard fits an iPhone SE. `scoreTaps` first pairs each onset with a tap of its own pitch, then pairs the rest by time, so simultaneous notes are scored hand by hand. `Exercise` highlights every element starting on the current beat and shows one timing label per column, the worst of that column.
+- Ear levels (`e1`, `e2`): pitch levels with `ear: true` and `passRt` 3000 ms. The drill plays do4 as reference then the target, hides the note until answered, ignores keys pressed before the target sounds, measures time from the target, and never writes per-note card stats.
+- Review: `reviewLevel(progress)` builds a virtual reading level (id `review`, grand staff, 30 notes) from every note with stats once at least `REVIEW_MIN_CARDS` were seen. Home shows it first; `reviewedToday` marks it done. Its summary has its own verdict and no lesson link.
+- Progress curve: `engine/trend.ts` groups reading sessions (reading levels and review) into the last 8 weeks, Monday first; Stats draws accuracy and median time as two separate `TrendChart`s with a table view. The series colour is `--series`, validated with the dataviz validator against the card surfaces (light `#2e5bd7`, dark `#6f8ef0`).
 - Score layout: `score/layout.ts` produces primitives from an `IScore`; `components/Staff.tsx` renders them as SVG with Bravura glyphs from `score/glyphs.ts`. Glyph font size = 4 spaces. Labels are centred under the head using `headW`.
-- Progress persisted in `localStorage` under `portee.v1`, shape `IProgress` (version 1). Export and import go through `exportProgress` / `importProgress`.
+- Progress persisted in `localStorage` under `portee.v1`, shape `IProgress` (version 1, with an `onboarded` flag defaulting to false). Export and import go through `exportProgress` / `importProgress`.
 
 ## Piano input
 
@@ -45,15 +51,15 @@ Hash routes handled in `App.tsx`: `` (home), `#<levelId>` (drill or exercise), `
 
 ## Design
 
-The design lives on a Claude Design canvas titled "Portée" (`https://claude.ai/artifact/VxzEkWNmkDBgMgvVQAGMh1`): seven phone screens plus a Fondations board. `src/styles.css` is its implementation. Tokens: paper `#f4efe6`, card `#fffcf7`, ink `#1b1814`, muted `#6b6358`, line `#e2dacc`, accent `#2e5bd7`, ok `#22703e`, bad `#c2392f`, meh `#8f5e12`.
+The design lives on a Claude Design canvas titled "Portée" (`https://claude.ai/artifact/VxzEkWNmkDBgMgvVQAGMh1`): eight phone screens, including the lesson quiz, plus a Fondations board. The review card, two-hand and ear levels, onboarding and progress curve are implemented but not drawn there yet. `src/styles.css` is its implementation. Tokens: paper `#f4efe6`, card `#fffcf7`, ink `#1b1814`, muted `#6b6358`, line `#e2dacc`, accent `#2e5bd7`, ok `#22703e`, bad `#c2392f`, meh `#8f5e12`.
 
 ## Testing
 
 - `tools/shot.mjs <url> <WxH> <actions.json>`: headless Chrome via CDP. Actions: `wait`, `tap` (touch), `key`, `eval`, `text`, `shot`, `full`. Prints console errors and failed requests.
 - `tools/shots.sh`: builds, serves, captures every screen at 390×844 and 375×667 into `shots/<date>/`.
 - `tools/touch.mjs <url>`: piano gesture regression (swipe must not register a note, tap must, non-scrollable keyboard is immediate, 8-key keyboards fit on iPhone SE). Prints PASS or FAIL per case.
-- `tools/session.mjs <url>`: plays a whole drill session of p2 by reading each note off the staff SVG and tapping its key, then checks the summary screen and the saved progress. Prints PASS or FAIL per case.
-- `shot.mjs` actions also take `dark: true` to capture with `prefers-color-scheme: dark`. Check 844×390 (landscape phone) and 1024×768 (tablet) after layout changes.
+- `tools/session.mjs <url>`: plays a whole drill session of p2 by reading each note off the staff SVG and tapping its key, checks the summary and the saved progress, then checks that Home offers the review and that it opens, and plays a whole ear session of e1 (early keys ignored, wrong answers reveal the note, no card stats written). Prints PASS or FAIL per case.
+- `shot.mjs` actions also take `dark: true` or `dark: false` to force `prefers-color-scheme`; the standard template forces light because headless Chrome follows the Mac appearance. Check 844×390 (landscape phone) and 1024×768 (tablet) after layout changes.
 - CI: `.github/workflows/ci.yml` runs `npm test` and the build on every push and pull request, and deploys `dist/` to GitHub Pages from `main`.
-- A fresh headless profile has empty progress, so Home shows every level as new and Stats is empty.
+- A fresh headless profile has empty progress, so the onboarding shows first (the template captures it, then taps `.onboarding .skip`), Home shows every level as new and Stats is empty until the template injects six weeks of sessions for the progress curve.
 - Test on 390×844 and on 375×667 (iPhone SE) for every visual change.

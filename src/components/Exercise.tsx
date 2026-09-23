@@ -5,8 +5,8 @@ import type { IPhraseLevel, IRhythmLevel } from '../engine/levels'
 import { pianoRange } from '../engine/levels'
 import type { IProgress } from '../engine/progress'
 import { recordScore, recordSession } from '../engine/progress'
-import type { IMeasure, IScoreResult, ITap, ITimedOnset } from '../engine/rhythm'
-import { assignLine, assignMelody, BEATS_PER_MEASURE, generateMeasures, onsetsOf, scoreTaps, startsOf } from '../engine/rhythm'
+import type { IMeasure, IOnsetResult, IScoreResult, ITap, ITimedOnset } from '../engine/rhythm'
+import { assignHands, assignLine, assignMelody, BEATS_PER_MEASURE, generateMeasures, onsetsOf, scoreTaps, startsOf } from '../engine/rhythm'
 import { setMidiHandlers } from '../midi/bus'
 import { useComputerKeys } from '../midi/computerKeys'
 import type { IScore } from '../score/layout'
@@ -38,7 +38,21 @@ const TAIL_MS = 250
 
 function build(level: IRhythmLevel | IPhraseLevel): IMeasure[] {
   const measures = generateMeasures(level.vocab, MEASURES)
-  return level.kind === 'phrase' ? assignMelody(measures, level.clef, level.range[0], level.range[1]) : assignLine(measures)
+  if (level.kind !== 'phrase') return assignLine(measures)
+  if (level.hands) return assignHands(measures, level.hands.mode, level.range, level.hands.bass)
+  return assignMelody(measures, level.clef, level.range[0], level.range[1])
+}
+
+function rank(r: IOnsetResult): number {
+  if (r.pitchOk === false) return 3
+  if (r.delta === null) return 2
+  return Math.abs(r.delta) / 1000
+}
+
+function labelOf(r: IOnsetResult): string {
+  if (r.pitchOk === false) return '✗'
+  if (r.delta === null) return '—'
+  return `${r.delta > 0 ? '+' : '−'}${Math.abs(Math.round(r.delta))}`
 }
 
 function summarize(result: IScoreResult, pitched: boolean): string {
@@ -82,7 +96,7 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
   const bpm = progress.settings.bpm
 
   const score = useMemo<IScore>(
-    () => ({ system: level.kind === 'phrase' ? level.clef : 'rhythm', key: 'C', timeSig: [4, 4], barlines: true, measures }),
+    () => ({ system: level.kind === 'phrase' ? (level.hands ? 'grand' : level.clef) : 'rhythm', key: 'C', timeSig: [4, 4], barlines: true, measures }),
     [level, measures],
   )
 
@@ -113,12 +127,9 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
     } else {
       if (phaseRef.current !== 'playing') setPhaseBoth('playing')
       const b = beat - COUNT_IN + 0.08
-      let idx = -1
-      for (const s of starts) {
-        if (s.beat <= b) idx = s.index
-        else break
-      }
-      setCurrent(idx)
+      let latest = -1
+      for (const s of starts) if (s.beat <= b && s.beat > latest) latest = s.beat
+      setCurrent(latest)
     }
     if (now > t.end + TAIL_MS) {
       finish()
@@ -219,26 +230,32 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
 
   const states = useMemo(() => {
     const out: Record<number, string> = {}
-    if (phase === 'playing' && current >= 0) out[current] = 'current'
+    if (phase === 'playing' && current >= 0) {
+      for (const s of starts) if (s.beat === current) out[s.index] = 'current'
+    }
     if (result) {
       for (const r of result.results) {
         out[r.index] = r.pitchOk === false || r.grade === 'miss' ? 'bad' : r.grade === 'late' ? 'meh' : 'ok'
       }
     }
     return out
-  }, [phase, current, result])
+  }, [phase, current, result, starts])
 
   const labels = useMemo(() => {
     const out: Record<number, string> = {}
-    if (result) {
-      for (const r of result.results) {
-        if (r.pitchOk === false) out[r.index] = '✗'
-        else if (r.delta === null) out[r.index] = '—'
-        else out[r.index] = `${r.delta > 0 ? '+' : '−'}${Math.abs(Math.round(r.delta))}`
-      }
+    if (!result) return out
+    const beatOf = new Map(starts.map((s) => [s.index, s.beat]))
+    const columns = new Map<number, IOnsetResult[]>()
+    for (const r of result.results) {
+      const b = beatOf.get(r.index) ?? r.index
+      columns.set(b, [...(columns.get(b) ?? []), r])
+    }
+    for (const group of columns.values()) {
+      const worst = group.reduce((a, r) => (rank(r) > rank(a) ? r : a))
+      out[Math.min(...group.map((r) => r.index))] = labelOf(worst)
     }
     return out
-  }, [result])
+  }, [result, starts])
 
   const notation = progress.settings.notation
   const keyLabels = pitched && progress.settings.keyLabels === 'on'

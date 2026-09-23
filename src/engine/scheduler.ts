@@ -25,6 +25,7 @@ export interface ILevelState {
 export const SESSION_LENGTH = 30
 export const PASS_ACCURACY = 0.95
 export const PASS_RT = 1500
+export const EAR_PASS_RT = 3000
 export const EXERCISES_TO_PASS = 5
 export const PASS_SCORE = 85
 
@@ -72,15 +73,16 @@ export function median(values: number[]): number {
 }
 
 export function sessionLengthOf(level: IPitchLevel): number {
+  if (level.length) return level.length
   return level.keys ? SESSION_LENGTH : Math.max(SESSION_LENGTH, level.cards.length)
 }
 
-export function pitchLevelState(history: IAnswer[], length = SESSION_LENGTH): ILevelState {
+export function pitchLevelState(history: IAnswer[], length = SESSION_LENGTH, passRt = PASS_RT): ILevelState {
   const recent = history.slice(-length)
   if (recent.length === 0) return { status: 'new', accuracy: 0, medianRt: 0, count: 0 }
   const accuracy = recent.filter((a) => a.ok).length / recent.length
   const medianRt = median(recent.map((a) => a.rt))
-  const done = recent.length >= length && accuracy >= PASS_ACCURACY && medianRt <= PASS_RT
+  const done = recent.length >= length && accuracy >= PASS_ACCURACY && medianRt <= passRt
   return { status: done ? 'done' : 'progress', accuracy, medianRt, count: recent.length }
 }
 
@@ -105,7 +107,7 @@ export function nextKey(level: IPitchLevel, progress: IProgress): KeyId | null {
 
 export function levelStateOf(level: Level, progress: IProgress): ILevelState {
   if (level.kind !== 'pitch') return exerciseLevelState(progress.scores[level.id] ?? [])
-  if (!level.keys) return pitchLevelState(progress.history[level.id] ?? [], sessionLengthOf(level))
+  if (!level.keys) return pitchLevelState(progress.history[level.id] ?? [], sessionLengthOf(level), level.passRt)
   const states = level.keys.map((k) => pitchLevelState(progress.history[historyKey(level.id, k)] ?? []))
   const done = states.filter((s) => s.status === 'done').length
   if (done === level.keys.length) return { status: 'done', accuracy: 1, medianRt: 0, count: done }

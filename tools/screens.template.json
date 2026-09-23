@@ -1,5 +1,7 @@
 [
-  { "wait": 900, "shot": "__OUT__/home.png" },
+  { "dark": false, "wait": 900, "shot": "__OUT__/onboarding.png" },
+  { "tap": ".onboarding .skip" },
+  { "wait": 500, "shot": "__OUT__/home.png" },
   { "eval": "location.hash='p2/lecon'" },
   { "wait": 700, "shot": "__OUT__/lesson.png" },
   { "eval": "location.hash='p2'" },
@@ -8,6 +10,10 @@
   { "wait": 500, "shot": "__OUT__/drill-wrong.png" },
   { "eval": "location.hash='p1'" },
   { "wait": 700, "shot": "__OUT__/drill-grand.png" },
+  { "eval": "location.hash='e1'" },
+  { "wait": 1500, "shot": "__OUT__/ear.png" },
+  { "eval": "location.hash='f4'" },
+  { "wait": 700, "shot": "__OUT__/hands.png" },
   { "eval": "location.hash='r1'" },
   { "wait": 700, "shot": "__OUT__/exercise.png" },
   { "tap": "button.primary" },
@@ -15,5 +21,12 @@
   { "eval": "location.hash='stats'" },
   { "wait": 700, "shot": "__OUT__/stats.png" },
   { "eval": "location.hash='settings'" },
-  { "wait": 700, "shot": "__OUT__/settings.png" }
+  { "wait": 700, "shot": "__OUT__/settings.png" },
+  { "eval": "(() => { const p = JSON.parse(localStorage.getItem('portee.v1')); const now = Date.now(); const week = 7 * 86400000; const acc = [0.72, 0.78, 0.83, 0.86, 0.9, 0.94]; const rt = [2600, 2300, 2000, 1800, 1600, 1400]; for (let i = 0; i < 6; i++) for (let k = 0; k < 3; k++) p.sessions.push({ date: now - (5 - i) * week - k * 3600000, level: 'p2', accuracy: acc[i] - k * 0.02, medianRt: rt[i] + k * 100 }); localStorage.setItem('portee.v1', JSON.stringify(p)); return p.sessions.length })()" },
+  { "eval": "location.reload()" },
+  { "wait": 2000 },
+  { "eval": "location.hash='stats'" },
+  { "wait": 900, "shot": "__OUT__/stats-trend.png" },
+  { "tap": ".trend-plot" },
+  { "wait": 300, "shot": "__OUT__/stats-trend-tip.png" }
 ]

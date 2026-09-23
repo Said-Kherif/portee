@@ -80,7 +80,7 @@ check('non-scrollable keyboard responds immediately', immediate.pressed === 1, `
 
 await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 2, mobile: true })
 await sleep(400)
-for (const id of ['r1', 'f0']) {
+for (const id of ['r1', 'f0', 'f3', 'f4', 'e1']) {
   await go(id)
   const fit = JSON.parse(await evaluate(`(() => { const el = document.querySelector('.piano'); return JSON.stringify({ scroll: el.scrollWidth, client: el.clientWidth, fades: document.querySelectorAll('.piano-fade').length }) })()`))
   check(`${id} keyboard fits on iPhone SE without fades`, fit.scroll <= fit.client && fit.fades === 0, `scroll=${fit.scroll} client=${fit.client} fades=${fit.fades}`)

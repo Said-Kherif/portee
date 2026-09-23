@@ -1,6 +1,9 @@
 import type { Clef, ICard, KeyId } from './notes'
-import { keyAlteration, letterAt, makeCard, midiAt } from './notes'
-import type { CellKind } from './rhythm'
+import { cardFromId, keyAlteration, letterAt, makeCard, midiAt } from './notes'
+import type { IProgress } from './progress'
+import { dayKey } from './progress'
+import type { CellKind, HandsMode } from './rhythm'
+import { EAR_PASS_RT, SESSION_LENGTH } from './scheduler'
 
 export type System = 'treble' | 'bass' | 'grand'
 
@@ -13,6 +16,9 @@ export interface IPitchLevel {
   cards: ICard[]
   focus: Set<string>
   keys?: KeyId[]
+  length?: number
+  passRt?: number
+  ear?: boolean
 }
 
 export interface IRhythmLevel {
@@ -31,6 +37,7 @@ export interface IPhraseLevel {
   clef: Clef
   range: [number, number]
   vocab: CellKind[]
+  hands?: { mode: HandsMode; bass: [number, number] }
 }
 
 export type Level = IPitchLevel | IRhythmLevel | IPhraseLevel
@@ -81,11 +88,15 @@ const withAccidentals = [...range('treble', 2, 10), ...range('bass', -10, -2), .
 const KEY_LIST: KeyId[] = ['G', 'D', 'A', 'F', 'Bb', 'Eb']
 const keyed = KEY_LIST.flatMap((k) => [...keyCards('treble', 2, 10, k), ...keyCards('bass', -10, -2, k)])
 const keyedFocus = ids(keyed.filter((c) => c.shown === 0 || keyAlteration(c.key, letterAt(c.diatonic)) !== 0))
+const earChord = [makeCard('treble', 0, null), makeCard('treble', 2, null), makeCard('treble', 4, null), makeCard('treble', 7, null)]
+const earScale = range('treble', 0, 7)
 
 const RHYTHM_BASE: CellKind[] = ['q', 'h', 'w', 'h.']
 const RHYTHM_EIGHTHS: CellKind[] = [...RHYTHM_BASE, 'ee', 'q.e']
 const RHYTHM_RESTS: CellKind[] = ['q', 'h', 'w', 'h.', 'ee', 'q.e', 'rq', 'rh', 'rw']
 const PHRASE_VOCAB: CellKind[] = ['q', 'h', 'h.', 'ee', 'q.e']
+const RIGHT_HAND: [number, number] = [0, 4]
+const LEFT_HAND: [number, number] = [-7, -3]
 
 export const LEVELS: Level[] = [
   { kind: 'pitch', id: 'p1', title: 'Notes repères', subtitle: 'Do central, sol4, do5, fa3, do3', system: 'grand', cards: landmarks, focus: new Set() },
@@ -98,13 +109,56 @@ export const LEVELS: Level[] = [
   { kind: 'rhythm', id: 'r1', title: 'Noires et blanches', subtitle: 'Noires, blanches, blanches pointées et rondes en 4/4', vocab: RHYTHM_BASE },
   { kind: 'rhythm', id: 'r2', title: 'Croches', subtitle: 'Croches par deux et noires pointées', vocab: RHYTHM_EIGHTHS },
   { kind: 'rhythm', id: 'r3', title: 'Silences', subtitle: 'Soupirs, demi-pauses et pauses au milieu des notes', vocab: RHYTHM_RESTS },
-  { kind: 'phrase', id: 'f0', title: 'Cinq notes', subtitle: 'Do4 à sol4, noires, blanches et rondes, la main en place', clef: 'treble', range: [0, 4], vocab: RHYTHM_BASE },
+  { kind: 'phrase', id: 'f0', title: 'Cinq notes', subtitle: 'Do4 à sol4, noires, blanches et rondes, la main en place', clef: 'treble', range: RIGHT_HAND, vocab: RHYTHM_BASE },
   { kind: 'phrase', id: 'f1', title: 'Main droite', subtitle: 'Deux mesures en clé de sol, hauteurs et rythme', clef: 'treble', range: [0, 11], vocab: PHRASE_VOCAB },
   { kind: 'phrase', id: 'f2', title: 'Main gauche', subtitle: 'Deux mesures en clé de fa, hauteurs et rythme', clef: 'bass', range: [-9, 2], vocab: PHRASE_VOCAB },
+  { kind: 'phrase', id: 'f3', title: 'Une main puis l’autre', subtitle: 'Grande portée, une mesure pour chaque main', clef: 'treble', range: RIGHT_HAND, vocab: RHYTHM_BASE, hands: { mode: 'alternate', bass: LEFT_HAND } },
+  { kind: 'phrase', id: 'f4', title: 'Les deux mains ensemble', subtitle: 'Une ronde à gauche sous la mélodie de droite', clef: 'treble', range: RIGHT_HAND, vocab: RHYTHM_BASE, hands: { mode: 'together', bass: LEFT_HAND } },
+  { kind: 'pitch', id: 'e1', title: 'L’accord de do', subtitle: 'Do, mi, sol et do aigu, après le do de repère', system: 'treble', cards: earChord, focus: new Set(), passRt: EAR_PASS_RT, ear: true },
+  { kind: 'pitch', id: 'e2', title: 'La gamme de do', subtitle: 'Les huit notes du do4 au do5, après le do de repère', system: 'treble', cards: earScale, focus: new Set(), passRt: EAR_PASS_RT, ear: true },
 ]
+
+export const REVIEW_ID = 'review'
+export const REVIEW_MIN_CARDS = 8
 
 export function levelById(id: string): Level | undefined {
   return LEVELS.find((l) => l.id === id)
+}
+
+export function levelTitle(id: string): string {
+  if (id === REVIEW_ID) return 'Révision du jour'
+  return levelById(id)?.title ?? id
+}
+
+export function isReading(id: string): boolean {
+  if (id === REVIEW_ID) return true
+  const level = levelById(id)
+  return level?.kind === 'pitch' && !level.ear
+}
+
+export function reviewLevel(progress: IProgress): IPitchLevel | null {
+  const cards: ICard[] = []
+  for (const [id, stat] of Object.entries(progress.cards)) {
+    if (stat.n === 0) continue
+    const card = cardFromId(id)
+    if (card) cards.push(card)
+  }
+  if (cards.length < REVIEW_MIN_CARDS) return null
+  return {
+    kind: 'pitch',
+    id: REVIEW_ID,
+    title: 'Révision du jour',
+    subtitle: 'Les notes déjà vues, les plus fragiles d’abord',
+    system: 'grand',
+    cards,
+    focus: new Set(),
+    length: SESSION_LENGTH,
+  }
+}
+
+export function reviewedToday(progress: IProgress): boolean {
+  const today = dayKey()
+  return progress.sessions.some((s) => s.level === REVIEW_ID && dayKey(new Date(s.date)) === today)
 }
 
 function floorToC(midi: number): number {
@@ -121,6 +175,7 @@ export function pianoRange(level: Level): [number, number] {
     return [floorToC(Math.min(...midis)), ceilToC(Math.max(...midis))]
   }
   if (level.kind === 'phrase') {
+    if (level.hands) return [midiAt(level.hands.bass[0], 0), midiAt(level.range[1], 0)]
     return [floorToC(midiAt(level.range[0], 0)), ceilToC(midiAt(level.range[1], 0))]
   }
   return [60, 72]
