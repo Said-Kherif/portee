@@ -42,6 +42,53 @@ describe('review level', () => {
   })
 })
 
+describe('review key signature', () => {
+  const both = () => {
+    const p = seen(REVIEW_MIN_CARDS + 2)
+    for (let d = 2; d < 2 + REVIEW_MIN_CARDS + 2; d++) p.cards[makeCard('treble', d, null, 'G').id] = updateStat(undefined, true, 900)
+    p.cards[makeCard('treble', 3, 0, 'G').id] = updateStat(undefined, false, 1800)
+    return p
+  }
+
+  it('keeps one key signature per review and names it', () => {
+    const keysSeen = new Set<string>()
+    for (let day = 1; day <= 60; day++) {
+      const level = reviewLevel(both(), `2026-10-${String(day).padStart(2, '0')}`)
+      if (!level) throw new Error('review should exist')
+      const keys = new Set(level.cards.map((c) => c.key))
+      expect(keys.size).toBe(1)
+      const [key] = [...keys]
+      keysSeen.add(key)
+      if (key === 'C') expect(level.keys).toBeUndefined()
+      else expect(level.keys).toEqual([key])
+    }
+    expect(keysSeen).toEqual(new Set(['C', 'G']))
+  })
+
+  it('stays the same all day long', () => {
+    const a = reviewLevel(both(), '2026-10-05')
+    const b = reviewLevel(both(), '2026-10-05')
+    expect(a?.keys).toEqual(b?.keys)
+  })
+
+  it('keeps naturals of key signatures at half weight', () => {
+    for (let day = 1; day <= 30; day++) {
+      const level = reviewLevel(both(), `2026-11-${String(day).padStart(2, '0')}`)
+      if (!level?.keys) continue
+      const natural = level.cards.find((c) => c.shown === 0)
+      expect(natural?.weight).toBe(0.5)
+      return
+    }
+    throw new Error('no G review drawn in a month')
+  })
+
+  it('ignores a key with too few notes seen', () => {
+    const p = seen(REVIEW_MIN_CARDS)
+    p.cards[makeCard('treble', 4, null, 'D').id] = updateStat(undefined, true, 900)
+    for (let day = 1; day <= 30; day++) expect(reviewLevel(p, `2026-12-${String(day).padStart(2, '0')}`)?.keys).toBeUndefined()
+  })
+})
+
 describe('level helpers', () => {
   it('title and classify sessions', () => {
     expect(levelTitle(REVIEW_ID)).toBe('Révision du jour')

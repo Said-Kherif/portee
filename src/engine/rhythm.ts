@@ -175,14 +175,18 @@ export function assignMelody(measures: IMeasure[], clef: Clef, low: number, high
 export type HandsMode = 'alternate' | 'together'
 
 const CHORD_STEPS = [0, 2, 4]
+const CONSONANT = [0, 3, 4, 7, 8, 9]
 
 export function assignHands(measures: IMeasure[], mode: HandsMode, treble: [number, number], bass: [number, number]): IMeasure[] {
   if (mode === 'together') {
     assignMelody(measures, 'treble', treble[0], treble[1])
     const roots: number[] = []
     for (let d = bass[0]; d <= bass[1]; d++) if (CHORD_STEPS.includes(((d % 7) + 7) % 7)) roots.push(d)
+    const dominant = roots.find((d) => ((d % 7) + 7) % 7 === 4) ?? roots[0] ?? bass[0]
     return measures.map((m) => {
-      const d = roots.length > 0 ? pick(roots) : bass[0]
+      const top = m.elements.find((e) => e.kind === 'note' && e.start === 0)?.midi
+      const fits = top === undefined ? roots : roots.filter((d) => CONSONANT.includes((((top - midiAt(d, 0)) % 12) + 12) % 12))
+      const d = fits.length > 0 ? pick(fits) : dominant
       const left: IElement = { kind: 'note', value: 'w', dots: 0, beats: 4, start: 0, clef: 'bass', diatonic: d, shown: null, midi: midiAt(d, 0) }
       return { elements: [left, ...m.elements] }
     })

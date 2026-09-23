@@ -143,6 +143,10 @@ describe('assignHands', () => {
         }
         const downbeat = onsetsOf(measures).filter((o) => o.beat === mi * BEATS_PER_MEASURE)
         expect(downbeat.length).toBe(2)
+        const top = right[0].midi ?? 0
+        const interval = (((top - (left.midi ?? 0)) % 12) + 12) % 12
+        if (top % 12 === 5) expect(left.diatonic).toBe(-3)
+        else expect([0, 3, 4, 7, 8, 9]).toContain(interval)
       })
     }
   })

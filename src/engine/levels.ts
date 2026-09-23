@@ -136,23 +136,45 @@ export function isReading(id: string): boolean {
   return level?.kind === 'pitch' && !level.ear
 }
 
-export function reviewLevel(progress: IProgress): IPitchLevel | null {
-  const cards: ICard[] = []
+function seeded(text: string): number {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return ((h >>> 0) % 10000) / 10000
+}
+
+export function reviewLevel(progress: IProgress, today = dayKey()): IPitchLevel | null {
+  const byKey = new Map<KeyId, ICard[]>()
   for (const [id, stat] of Object.entries(progress.cards)) {
     if (stat.n === 0) continue
     const card = cardFromId(id)
-    if (card) cards.push(card)
+    if (!card) continue
+    const list = byKey.get(card.key) ?? []
+    list.push(card.shown === 0 ? { ...card, weight: 0.5 } : card)
+    byKey.set(card.key, list)
   }
-  if (cards.length < REVIEW_MIN_CARDS) return null
+  const eligible = [...byKey.entries()].filter(([, cards]) => cards.length >= REVIEW_MIN_CARDS).sort(([a], [b]) => a.localeCompare(b))
+  if (eligible.length === 0) return null
+  const total = eligible.reduce((a, [, cards]) => a + cards.length, 0)
+  let draw = seeded(today) * total
+  let chosen = eligible[eligible.length - 1]
+  for (const entry of eligible) {
+    draw -= entry[1].length
+    if (draw < 0) {
+      chosen = entry
+      break
+    }
+  }
+  const [key, cards] = chosen
   return {
     kind: 'pitch',
     id: REVIEW_ID,
     title: 'Révision du jour',
-    subtitle: 'Les notes déjà vues, les plus fragiles d’abord',
+    subtitle: 'Les notes déjà vues, les plus fragiles plus souvent',
     system: 'grand',
     cards,
     focus: new Set(),
     length: SESSION_LENGTH,
+    keys: key === 'C' ? undefined : [key],
   }
 }
 

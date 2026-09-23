@@ -70,7 +70,7 @@ export function Home({ progress, onSelect, onLesson, onStats, onSettings }: IHom
                 <span className="level-num">{reviewDone ? <IconCheck /> : <IconRepeat />}</span>
                 <span className="level-body">
                   <span className="level-title">{review.title}</span>
-                  <span className="level-sub">{`${review.cards.length} notes déjà vues, les plus fragiles d’abord`}</span>
+                  <span className="level-sub">{`${review.cards.length} notes déjà vues${review.keys ? ` en ${KEYS[review.keys[0]].label.toLowerCase()}` : ''}, les plus fragiles plus souvent`}</span>
                   {reviewDone ? <span className="level-status">Faite aujourd’hui</span> : <span className="level-tag">À faire</span>}
                 </span>
               </button>

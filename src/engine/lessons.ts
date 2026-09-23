@@ -68,7 +68,7 @@ export const LESSONS: ILesson[] = [
         title: 'La portée',
         text: [
           'Cinq lignes, quatre interlignes. Une note est posée soit sur une ligne, soit dans un interligne, jamais entre les deux.',
-          'Plus la note est haute sur la portée, plus la touche est à droite sur le clavier. Chaque ligne ou interligne correspond à une touche blanche. La clé, qui donne leur nom aux notes, arrive à l’étape suivante.',
+          'Plus la note est haute sur la portée, plus la touche est à droite sur le clavier. Chaque ligne ou interligne correspond à une touche blanche. La clé, qui donne leur nom aux notes, arrive à l’étape suivante : en clé de sol, ces cinq notes seraient les touches marquées, de mi à si.',
         ],
         score: pitches('rhythm', [T(2), T(3), T(4), T(5), T(6)]),
         piano: { low: 60, high: 72, marks: [64, 65, 67, 69, 71] },
@@ -405,7 +405,7 @@ export const LESSONS: ILesson[] = [
           'Un silence se compte comme une note, mais sans attaque. Le soupir vaut un temps de silence, la demi-pause vaut deux temps et se pose sur la troisième ligne.',
           'Pendant un silence, ne tape rien et continue de compter.',
         ],
-        score: rhythm([{ elements: [q(0), rq(1), q(2), rq(3)] }, { elements: [rh(0), h(2)] }]),
+        score: rhythm([{ elements: [q(0), rq(1), q(2), rq(3)] }, { elements: [h(0), rh(2)] }]),
         labels: { 0: '1', 1: '2', 2: '3', 3: '4', 4: '1', 5: '3' },
       },
       {
@@ -501,7 +501,7 @@ export const LESSONS: ILesson[] = [
       {
         title: 'Une mesure pour chaque main',
         text: [
-          'Sur la grande portée, la clé de sol est pour la main droite et la clé de fa pour la main gauche. Dans ce palier, chaque mesure est pour une seule main.',
+          'Sur la grande portée, la portée du haut en clé de sol est ici pour la main droite, celle du bas en clé de fa pour la main gauche. Dans ce palier, chaque mesure est pour une seule main.',
           'Pendant ce temps, l’autre portée affiche une pause : cette main se repose et compte ses quatre temps.',
         ],
         score: grand([
@@ -564,7 +564,7 @@ export const LESSONS: ILesson[] = [
         title: 'Comparer au repère',
         text: [
           'Compare chaque note au do de départ : plus elle est aiguë, plus la touche est à droite. Le do aigu sonne comme le do de départ, une octave plus haut.',
-          'Tu peux réécouter autant de fois que tu veux. Le temps compté part de la note à trouver, pas du repère.',
+          'Tu peux réécouter autant de fois que tu veux, mais la première touche jouée compte comme réponse. Le temps compté part de la note à trouver, pas du repère.',
         ],
         piano: { low: 60, high: 72, marks: [60, 72] },
       },
@@ -577,7 +577,7 @@ export const LESSONS: ILesson[] = [
         title: 'La gamme de do',
         text: [
           'Les huit notes de la gamme, du do central au do aigu. Chante-les dans ta tête en montant : do, ré, mi, fa, sol, la, si, do.',
-          'Pour trouver une note, remonte la gamme depuis le repère jusqu’à ce qu’elle sonne pareil.',
+          'Pour trouver une note, remonte la gamme dans ta tête depuis le repère jusqu’à ce qu’elle sonne pareil, puis joue une seule touche : la première compte.',
         ],
         score: pitches('treble', [T(0), T(1), T(2), T(3), T(4), T(5), T(6), T(7)], 'C', 3),
         names: true,
