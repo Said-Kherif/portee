@@ -39,7 +39,7 @@ await send('Page.navigate', { url })
 await sleep(2500)
 
 const center = (sel) => evaluate(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
-const state = async () => JSON.parse(await evaluate(`JSON.stringify({ hint: document.querySelector('.hint')?.textContent.trim() ?? null, meta: document.querySelector('.bar-meta')?.textContent.trim() ?? null, pressed: document.querySelectorAll('.key.pressed').length, scrollLeft: Math.round(document.querySelector('.piano').scrollLeft) })`))
+const state = async () => JSON.parse(await evaluate(`JSON.stringify({ hint: document.querySelector('.answer')?.textContent.trim() ?? null, meta: document.querySelector('.progress-count')?.textContent.trim() ?? null, pressed: document.querySelectorAll('.key.pressed').length, scrollLeft: Math.round(document.querySelector('.piano').scrollLeft) })`))
 const touch = (type, pts) => send('Input.dispatchTouchEvent', { type, touchPoints: pts })
 const go = async (hash) => { await evaluate(`location.hash='${hash}'`); await sleep(700) }
 let failed = 0

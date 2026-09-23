@@ -32,16 +32,16 @@ const STEPS = [
     text: 'Joue sur le clavier de l’écran : touche une note pour l’entendre. Avec un piano numérique branché en USB, active le clavier MIDI dans les réglages.',
   },
   {
-    title: 'Une leçon, puis une série',
-    text: 'Chaque palier commence par une courte leçon, puis une série de notes à jouer. Une série par jour suffit pour progresser.',
+    title: 'Joue, gagne des étoiles',
+    text: 'Chaque niveau commence par une courte leçon, puis une série de notes à jouer. Enchaîne les notes justes pour le combo, gagne des étoiles pour ouvrir la suite et monte de niveau.',
   },
 ]
 
 const GROUPS = [
-  { name: 'Lecture', about: 'les notes sur la portée' },
-  { name: 'Rythme', about: 'les durées et la pulsation' },
-  { name: 'Phrases', about: 'les deux ensemble, puis à deux mains' },
-  { name: 'Oreille', about: 'reconnaître une note entendue' },
+  { name: 'Monde 1 · Lecture', about: 'les notes sur la portée' },
+  { name: 'Monde 2 · Rythme', about: 'les durées et la pulsation' },
+  { name: 'Monde 3 · Phrases', about: 'les deux, puis à deux mains' },
+  { name: 'Monde 4 · Oreille', about: 'une note entendue' },
 ]
 
 export function Onboarding({ notation, onDone }: IOnboardingProps) {

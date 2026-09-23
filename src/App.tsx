@@ -10,7 +10,7 @@ import { Stats } from './components/Stats'
 import { Gallery } from './components/Gallery'
 import type { Level } from './engine/levels'
 import { lessonFor } from './engine/lessons'
-import { levelById, REVIEW_ID, reviewLevel } from './engine/levels'
+import { CHRONO_ID, chronoLevel, levelById, REVIEW_ID, reviewLevel } from './engine/levels'
 import type { IProgress } from './engine/progress'
 import { useProgress } from './engine/progress'
 import { emitNoteOff, emitNoteOn } from './midi/bus'
@@ -20,6 +20,7 @@ type View = { name: 'home' } | { name: 'level'; level: Level } | { name: 'lesson
 
 function levelFromId(id: string, progress: IProgress): Level | undefined {
   if (id === REVIEW_ID) return reviewLevel(progress) ?? undefined
+  if (id === CHRONO_ID) return chronoLevel(progress)
   return levelById(id)
 }
 
@@ -123,7 +124,7 @@ export function App() {
       )}
       {view.name === 'lesson' && !currentLesson && <Home progress={progress} onSelect={select} onLesson={openLesson} onStats={() => setView({ name: 'stats' })} onSettings={() => setView({ name: 'settings' })} />}
       {view.name === 'level' && view.level.kind === 'pitch' && (
-        <Drill key={view.level.id} level={view.level} progress={progress} update={update} onExit={home} onLesson={() => openLesson(view.level)} />
+        <Drill key={view.level.id} level={view.level} progress={progress} update={update} onExit={home} onLesson={() => openLesson(view.level)} onSelect={select} />
       )}
       {view.name === 'level' && view.level.kind !== 'pitch' && (
         <Exercise key={view.level.id} level={view.level} progress={progress} update={update} onExit={home} onLesson={() => openLesson(view.level)} />

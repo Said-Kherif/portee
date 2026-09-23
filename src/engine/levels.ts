@@ -19,6 +19,7 @@ export interface IPitchLevel {
   length?: number
   passRt?: number
   ear?: boolean
+  timed?: number
 }
 
 export interface IRhythmLevel {
@@ -120,6 +121,21 @@ export const LEVELS: Level[] = [
 
 export const REVIEW_ID = 'review'
 export const REVIEW_MIN_CARDS = 8
+export const CHRONO_ID = 'chrono'
+export const CHRONO_SECONDS = 60
+
+export interface IWorld {
+  id: string
+  title: string
+  levels: Level[]
+}
+
+export const WORLDS: IWorld[] = [
+  { id: 'lecture', title: 'Lecture', levels: LEVELS.filter((l) => l.kind === 'pitch' && !l.ear) },
+  { id: 'rythme', title: 'Rythme', levels: LEVELS.filter((l) => l.kind === 'rhythm') },
+  { id: 'phrases', title: 'Phrases', levels: LEVELS.filter((l) => l.kind === 'phrase') },
+  { id: 'oreille', title: 'Oreille', levels: LEVELS.filter((l) => l.kind === 'pitch' && !!l.ear) },
+]
 
 export function levelById(id: string): Level | undefined {
   return LEVELS.find((l) => l.id === id)
@@ -127,6 +143,7 @@ export function levelById(id: string): Level | undefined {
 
 export function levelTitle(id: string): string {
   if (id === REVIEW_ID) return 'Révision du jour'
+  if (id === CHRONO_ID) return 'Défi chrono'
   return levelById(id)?.title ?? id
 }
 
@@ -175,6 +192,27 @@ export function reviewLevel(progress: IProgress, today = dayKey()): IPitchLevel 
     focus: new Set(),
     length: SESSION_LENGTH,
     keys: key === 'C' ? undefined : [key],
+  }
+}
+
+export function chronoLevel(progress: IProgress): IPitchLevel {
+  const seen = new Map<string, ICard>()
+  for (const [id, stat] of Object.entries(progress.cards)) {
+    if (stat.n === 0) continue
+    const card = cardFromId(id)
+    if (card && card.key === 'C' && card.shown === null) seen.set(card.id, card)
+  }
+  const pool = seen.size >= REVIEW_MIN_CARDS ? [...seen.values()] : [...new Map([...landmarks, ...range('treble', 2, 10)].map((c) => [c.id, c])).values()]
+  return {
+    kind: 'pitch',
+    id: CHRONO_ID,
+    title: 'Défi chrono',
+    subtitle: 'Soixante secondes, un maximum de notes',
+    system: 'grand',
+    cards: pool,
+    focus: new Set(),
+    length: 999,
+    timed: CHRONO_SECONDS,
   }
 }
 

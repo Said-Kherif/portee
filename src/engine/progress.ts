@@ -25,6 +25,10 @@ export interface IProgress {
   settings: ISettings
   lessonsSeen: string[]
   onboarded: boolean
+  xp: number
+  records: Record<string, number>
+  stars: Record<string, number>
+  badges: Record<string, number>
 }
 
 const KEY = 'portee.v1'
@@ -42,16 +46,27 @@ export function defaultProgress(): IProgress {
     settings: { notation: 'fr', keyLabels: 'auto', bpm: 70 },
     lessonsSeen: [],
     onboarded: false,
+    xp: 0,
+    records: {},
+    stars: {},
+    badges: {},
   }
+}
+
+export const XP_PER_PAST_SESSION = 50
+
+export function migrate(parsed: Partial<IProgress>): IProgress {
+  const base = defaultProgress()
+  const merged: IProgress = { ...base, ...parsed, settings: { ...base.settings, ...(parsed.settings ?? {}) } }
+  if (typeof parsed.xp !== 'number') merged.xp = merged.sessions.length * XP_PER_PAST_SESSION
+  return merged
 }
 
 export function loadProgress(): IProgress {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<IProgress>
-      const base = defaultProgress()
-      return { ...base, ...parsed, settings: { ...base.settings, ...(parsed.settings ?? {}) } }
+      return migrate(JSON.parse(raw) as Partial<IProgress>)
     }
   } catch {
     return defaultProgress()
@@ -115,8 +130,7 @@ export function importProgress(json: string): IProgress | null {
   try {
     const parsed = JSON.parse(json) as Partial<IProgress>
     if (!parsed || typeof parsed !== 'object' || parsed.version !== 1) return null
-    const base = defaultProgress()
-    return { ...base, ...parsed, settings: { ...base.settings, ...(parsed.settings ?? {}) } }
+    return migrate(parsed)
   } catch {
     return null
   }

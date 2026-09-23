@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { scheduleClicks } from '../audio/metronome'
 import { getContext, noteOff as audioOff, noteOn as audioOn, unlockAudio } from '../audio/piano'
+import type { IReward } from '../engine/game'
+import { exercisePoints, settle } from '../engine/game'
 import type { IPhraseLevel, IRhythmLevel } from '../engine/levels'
 import { pianoRange } from '../engine/levels'
 import type { IProgress } from '../engine/progress'
@@ -10,8 +12,9 @@ import { assignHands, assignLine, assignMelody, BEATS_PER_MEASURE, generateMeasu
 import { setMidiHandlers } from '../midi/bus'
 import { useComputerKeys } from '../midi/computerKeys'
 import type { IScore } from '../score/layout'
-import { IconClose } from './Icons'
+import { IconClose, IconCrown } from './Icons'
 import { Piano } from './Piano'
+import { BadgeList, formatScore, Stars } from './Reward'
 import { Staff } from './Staff'
 
 type Phase = 'idle' | 'countin' | 'playing' | 'done'
@@ -86,6 +89,9 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
   const [result, setResult] = useState<IScoreResult | null>(null)
   const [pressed, setPressed] = useState<Set<number>>(() => new Set())
   const [pulse, setPulse] = useState(-1)
+  const [reward, setReward] = useState<IReward | null>(null)
+  const progressRef = useRef(progress)
+  progressRef.current = progress
   const [range] = useState(() => pianoRange(level))
   const phaseRef = useRef<Phase>('idle')
   const tapsRef = useRef<ITap[]>([])
@@ -109,12 +115,16 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
     const t = timingRef.current
     if (!t) return
     const r = scoreTaps(t.onsets, tapsRef.current, pitched)
+    const gained = exercisePoints(r.results)
+    const input = { level, points: gained.points, accuracy: r.score / 100, medianRt: 0, bestCombo: gained.bestCombo, correct: gained.correct }
+    const record = (p: IProgress): IProgress => recordSession(recordScore(p, level.id, r.score), { date: Date.now(), level: level.id, accuracy: r.score / 100, medianRt: 0 })
+    setReward(settle(progressRef.current, input, record).reward)
     setResult(r)
     setCurrent(-1)
     setPulse(-1)
     setPhaseBoth('done')
-    update((p) => recordSession(recordScore(p, level.id, r.score), { date: Date.now(), level: level.id, accuracy: r.score / 100, medianRt: 0 }))
-  }, [level.id, pitched, setPhaseBoth, update])
+    update((p) => settle(p, input, record).progress)
+  }, [level, pitched, setPhaseBoth, update])
 
   const loop = useCallback(() => {
     const t = timingRef.current
@@ -218,12 +228,14 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
   const regenerate = (): void => {
     setMeasures(build(level))
     setResult(null)
+    setReward(null)
     setCurrent(-1)
     setPhaseBoth('idle')
   }
 
   const replay = (): void => {
     setResult(null)
+    setReward(null)
     setCurrent(-1)
     setPhaseBoth('idle')
   }
@@ -263,9 +275,8 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
   return (
     <div className="screen exercise">
       <header className="bar">
-        <button className="link" onClick={onExit}>
+        <button className="icon-button" aria-label="Quitter" onClick={onExit}>
           <IconClose />
-          Quitter
         </button>
         <div className="bar-title">{level.title}</div>
         <div className="bar-meta">{bpm} bpm</div>
@@ -288,10 +299,25 @@ export function Exercise({ level, progress, update, onExit, onLesson }: IExercis
               ))}
             </div>
           )}
-          {phase === 'done' && result && (
+          {phase === 'done' && result && reward && (
             <div className="result">
-              <div className="score-value">{result.score}&nbsp;%</div>
-              <div className="muted">{summarize(result, pitched)}</div>
+              {reward.newRecord && (
+                <span className="record-flag small">
+                  <IconCrown size={18} />
+                  Nouveau record
+                </span>
+              )}
+              <div className="result-top">
+                <span className="score-value">{formatScore(reward.points)}</span>
+                <Stars n={reward.starsAfter} from={reward.starsBefore} size={22} />
+              </div>
+              <div className="muted">
+                {result.score}&nbsp;% · {summarize(result, pitched)}
+              </div>
+              <div className="xp-line">
+                +{formatScore(reward.xpGained)} XP{reward.levelAfter > reward.levelBefore ? ` · niveau ${reward.levelAfter} !` : ''}
+              </div>
+              <BadgeList ids={reward.badges} />
             </div>
           )}
         </div>

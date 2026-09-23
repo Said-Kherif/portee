@@ -142,9 +142,8 @@ export function Lesson({ level, lesson, progress, update, onStart, onExit }: ILe
   return (
     <div className="screen lesson">
       <header className="bar">
-        <button className="link" onClick={onExit}>
+        <button className="icon-button" aria-label="Quitter" onClick={onExit}>
           <IconClose />
-          Quitter
         </button>
         <div className="bar-title">{level.title}</div>
         <div className="bar-meta">

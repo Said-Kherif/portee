@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { percent, seconds } from '../engine/format'
+import { BADGES } from '../engine/game'
 import type { Level } from '../engine/levels'
-import { levelById, LEVELS, levelTitle, REVIEW_ID } from '../engine/levels'
+import { CHRONO_ID, levelById, LEVELS, levelTitle, REVIEW_ID } from '../engine/levels'
 import type { Clef } from '../engine/notes'
 import { cardFromId, cardName, noteName } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
@@ -10,7 +11,8 @@ import { PASS_ACCURACY, PASS_RT, weightOf } from '../engine/scheduler'
 import type { IElement } from '../engine/rhythm'
 import { readingWeeks } from '../engine/trend'
 import type { IScore } from '../score/layout'
-import { IconBack, IconForward } from './Icons'
+import { IconBack, IconForward, IconTrophy } from './Icons'
+import { BadgeIcon, formatScore } from './Reward'
 import { Staff } from './Staff'
 import { TrendChart } from './TrendChart'
 
@@ -108,13 +110,15 @@ export function Stats({ progress, onExit, onSelect }: IStatsProps) {
   const sessions = [...progress.sessions].reverse().slice(0, 8)
   const streak = isStreakAlive(progress.streak) ? progress.streak.count : 0
   const totalAnswers = Object.values(progress.cards).reduce((a, s) => a + s.n, 0)
+  const records = [CHRONO_ID, ...LEVELS.map((l) => l.id)]
+    .filter((id) => (progress.records[id] ?? 0) > 0)
+    .map((id) => ({ id, title: levelTitle(id), value: id === CHRONO_ID ? `${progress.records[id]} notes` : formatScore(progress.records[id]) }))
 
   return (
     <div className="screen stats">
       <header className="bar">
-        <button className="link" onClick={onExit}>
+        <button className="icon-button" aria-label="Retour" onClick={onExit}>
           <IconBack />
-          Retour
         </button>
         <div className="bar-title">Stats</div>
         <div className="bar-meta" />
@@ -134,6 +138,37 @@ export function Stats({ progress, onExit, onSelect }: IStatsProps) {
             <div className="stat-label">séries</div>
           </div>
         </div>
+        <h2>Badges</h2>
+        <ul className="badges">
+          {BADGES.map((b) => {
+            const owned = b.id in progress.badges
+            return (
+              <li key={b.id} className={`badge ${owned ? 'on' : ''}`}>
+                <span className="badge-icon">
+                  <BadgeIcon id={b.id} />
+                </span>
+                <span className="badge-title">{b.title}</span>
+                <span className="badge-hint">{owned ? 'Obtenu' : b.hint}</span>
+              </li>
+            )
+          })}
+        </ul>
+        <h2>Records</h2>
+        {records.length > 0 ? (
+          <ul className="records">
+            {records.map((r) => (
+              <li key={r.id}>
+                <span>{r.title}</span>
+                <span className="record-value">
+                  <IconTrophy size={13} />
+                  {r.value}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Tes meilleurs scores apparaîtront ici.</p>
+        )}
         <h2>Progression en lecture</h2>
         {accuracies.length >= 2 ? (
           <>

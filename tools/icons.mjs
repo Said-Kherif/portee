@@ -15,8 +15,8 @@ const SIZES = [
   ['icon-192.png', 192],
   ['apple-touch-icon.png', 180],
 ]
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1b1814"/><g stroke="#f4efe6" stroke-width="11" stroke-linecap="round"><path d="M120 176h272M120 216h272M120 256h272M120 296h272M120 336h272"/><path d="M336 288V112"/></g><ellipse cx="300" cy="296" rx="38" ry="26" fill="#f4efe6" transform="rotate(-20 300 296)"/></svg>`
-const html = `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#1b1814}svg{display:block;width:100vw;height:100vh}</style></head><body>${svg}</body></html>`
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#15122e"/><g stroke="#f5f3ff" stroke-width="11" stroke-linecap="round"><path d="M120 176h272M120 216h272M120 256h272M120 296h272M120 336h272"/></g><path d="M336 288V112" stroke="#3ff3c3" stroke-width="11" stroke-linecap="round"/><ellipse cx="300" cy="296" rx="38" ry="26" fill="#3ff3c3" transform="rotate(-20 300 296)"/></svg>`
+const html = `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#15122e}svg{display:block;width:100vw;height:100vh}</style></head><body>${svg}</body></html>`
 
 mkdirSync(OUT, { recursive: true })
 const port = 9300 + Math.floor(Math.random() * 500)

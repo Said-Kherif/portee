@@ -62,9 +62,8 @@ export function Settings({ progress, update, midi, onExit }: ISettingsProps) {
   return (
     <div className="screen settings">
       <header className="bar">
-        <button className="link" onClick={onExit}>
+        <button className="icon-button" aria-label="Retour" onClick={onExit}>
           <IconBack />
-          Retour
         </button>
         <div className="bar-title">Réglages</div>
         <div className="bar-meta" />

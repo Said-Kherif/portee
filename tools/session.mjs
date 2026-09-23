@@ -71,41 +71,97 @@ const check = (name, ok, detail) => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` (${detail})` : ''}`)
 }
 
+const text = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)})?.textContent.trim() ?? ''`)
+const saved = async () => JSON.parse(await evaluate(`localStorage.getItem('portee.v1')`))
+
 await evaluate(`location.hash='${LEVEL}'`)
 await sleep(800)
-const total = Number(await evaluate(`document.querySelector('.bar-meta').textContent.split('/')[1]`))
+const total = Number((await text('.progress-count')).split('/')[1])
 check('drill opens with a session length', total >= 30, `length=${total}`)
+const hud = { score: await text('.score-num'), combo: await text('.combo') }
+check('the game bar starts at zero without combo', hud.score === '0' && hud.combo === 'Combo ×1', `${hud.score} · ${hud.combo}`)
 let answered = 0
+let combo = ''
 for (let i = 0; i < total; i++) {
   const midi = await shownMidi()
   if (midi === null) break
   if (!(await tap(`[data-midi="${midi}"]`))) break
   answered++
   await sleep(600)
+  if (i === 4) combo = await text('.combo')
 }
 check('every note of the session was answered', answered === total, `${answered}/${total}`)
+check('five right notes in a row double the points', combo === 'Combo ×2', combo)
 await sleep(500)
-const summary = JSON.parse(await evaluate(`JSON.stringify({ shown: !!document.querySelector('.summary'), stats: [...document.querySelectorAll('.summary .stat-value')].map((e) => e.textContent), verdict: document.querySelector('.summary .muted')?.textContent ?? '' })`))
-check('summary screen is shown', summary.shown, summary.stats.join(' · '))
-check('accuracy is 100 %', summary.stats[0] === '100 %', summary.stats[0])
-check('level is validated', summary.verdict.includes('validé'), summary.verdict)
-const saved = JSON.parse(await evaluate(`JSON.stringify((() => { const p = JSON.parse(localStorage.getItem('portee.v1')); return { history: (p.history['${LEVEL}'] ?? []).length, sessions: p.sessions.length, streak: p.streak.count, cards: Object.keys(p.cards).length } })())`))
-check('history holds the whole session', saved.history === total, `history=${saved.history}`)
-check('one session and a streak of 1 were recorded', saved.sessions === 1 && saved.streak === 1, `sessions=${saved.sessions} streak=${saved.streak}`)
-check('card stats were written', saved.cards > 0, `cards=${saved.cards}`)
-await tap('.summary button.primary')
+const reward = JSON.parse(await evaluate(`JSON.stringify({
+  shown: !!document.querySelector('.reward'),
+  stats: [...document.querySelectorAll('.reward .stat-value')].map((e) => e.textContent),
+  verdict: document.querySelector('.reward .verdict')?.textContent ?? '',
+  score: Number((document.querySelector('.reward .big-score')?.textContent ?? '').replace(/\\D/g, '')),
+  record: !!document.querySelector('.reward .record-flag'),
+  stars: document.querySelectorAll('.reward .stars.big .star.on').length,
+  xp: document.querySelector('.reward .xp-gain')?.textContent ?? '',
+  badges: [...document.querySelectorAll('.reward .badge-card .badge-title')].map((e) => e.textContent),
+  next: document.querySelector('.reward button.next')?.textContent ?? '',
+})`))
+check('reward screen is shown', reward.shown, reward.stats.join(' · '))
+check('accuracy is 100 %', reward.stats[0] === '100\u00a0%', reward.stats[0])
+check('level is validated', reward.verdict.includes('validé'), reward.verdict)
+check('a first session is a new record with three stars', reward.record && reward.stars === 3 && reward.score >= 30 * 20, `score=${reward.score} stars=${reward.stars}`)
+check('XP and the first badges are awarded', reward.xp.startsWith('+') && reward.badges.includes('Premier pas') && reward.badges.includes('Sans faute'), `${reward.xp} · ${reward.badges.join(', ')}`)
+check('the next level is offered', reward.next === 'Suivant', reward.next)
+const p = await saved()
+check('history holds the whole session', (p.history[LEVEL] ?? []).length === total, `history=${(p.history[LEVEL] ?? []).length}`)
+check('one session and a streak of 1 were recorded', p.sessions.length === 1 && p.streak.count === 1, `sessions=${p.sessions.length} streak=${p.streak.count}`)
+check('card stats were written', Object.keys(p.cards).length > 0, `cards=${Object.keys(p.cards).length}`)
+check('record, stars, XP and badges were saved', p.records[LEVEL] === reward.score && p.stars[LEVEL] === 3 && p.xp > 0 && 'first' in p.badges, `record=${p.records[LEVEL]} stars=${p.stars[LEVEL]} xp=${p.xp}`)
+await tap('.reward button.replay')
 await sleep(800)
-const again = await evaluate(`document.querySelector('.bar-meta')?.textContent ?? ''`)
-check('a new session starts from the summary', again.trim().startsWith('1 /'), again.trim())
+const again = { count: await text('.progress-count'), score: await text('.score-num') }
+check('a new session starts from the reward screen', again.count.startsWith('1 /') && again.score === '0', `${again.count} · ${again.score}`)
 
 await evaluate(`location.hash=''`)
 await sleep(800)
-const review = JSON.parse(await evaluate(`JSON.stringify({ card: !!document.querySelector('.level.review'), title: document.querySelector('.level.review .level-title')?.textContent ?? '', sub: document.querySelector('.level.review .level-sub')?.textContent ?? '' })`))
-check('home offers the daily review once notes were seen', review.card && review.title === 'Révision du jour', review.sub)
-await tap('.level.review .level-main')
+const home = JSON.parse(await evaluate(`JSON.stringify({
+  level: document.querySelector('.player-level')?.textContent ?? '',
+  tiles: [...document.querySelectorAll('.world')[0].querySelectorAll('.tile')].map((t) => t.className.replace('tile', '').trim()),
+  record: document.querySelectorAll('.world')[0].querySelectorAll('.tile')[1]?.querySelector('.tile-info')?.textContent ?? '',
+  review: document.querySelector('.banner.review .banner-title')?.textContent ?? '',
+})`))
+check('home shows the player level from the saved XP', /^Niveau [2-9]/.test(home.level), home.level)
+check('tiles show p2 done, p3 open and p4 locked', home.tiles[1] === 'done' && home.tiles[2] === 'open' && home.tiles[3] === 'locked', home.tiles.join(' '))
+check('the tile shows its record', home.record.startsWith('Record'), home.record)
+check('home offers the daily review once notes were seen', home.review === 'Révision du jour', home.review)
+await tap('.banner.review')
 await sleep(800)
-const reviewBar = JSON.parse(await evaluate(`JSON.stringify({ title: document.querySelector('.bar-title')?.textContent ?? '', meta: document.querySelector('.bar-meta')?.textContent.trim() ?? '', hash: location.hash })`))
-check('the review opens as a drill of 30 notes', reviewBar.title === 'Révision du jour' && reviewBar.meta === '1 / 30' && reviewBar.hash === '#review', `${reviewBar.title} ${reviewBar.meta} ${reviewBar.hash}`)
+const reviewBar = { title: await text('.game-title'), count: await text('.progress-count'), hash: await evaluate('location.hash') }
+check('the review opens as a drill of 30 notes', reviewBar.title === 'Révision du jour' && reviewBar.count === '1 / 30' && reviewBar.hash === '#review', `${reviewBar.title} ${reviewBar.count} ${reviewBar.hash}`)
+
+await evaluate(`location.hash='chrono'`)
+await sleep(800)
+const ready = { start: await evaluate(`!!document.querySelector('.chrono-start')`), timer: await text('.progress-count') }
+check('the chrono waits for the start button', ready.start && ready.timer === '60 s', ready.timer)
+await tap('[data-midi="64"]')
+await sleep(300)
+const idle = { score: await text('.score-num'), pop: await evaluate(`!!document.querySelector('.pop')`) }
+check('keys are ignored before the start', idle.score === '0' && !idle.pop, `score=${idle.score} pop=${idle.pop}`)
+await tap('.chrono-start button.primary')
+const started = Date.now()
+await sleep(300)
+let hits = 0
+while (Date.now() - started < 75000) {
+  if (await evaluate(`!!document.querySelector('.reward')`)) break
+  const midi = await shownMidi()
+  if (midi === null) { await sleep(200); continue }
+  if (!(await tap(`[data-midi="${midi}"]`))) break
+  hits++
+  await sleep(450)
+}
+const elapsed = Date.now() - started
+const chronoEnd = { eyebrow: await text('.reward .eyebrow'), score: Number(await text('.reward .big-score')) }
+check('the chrono ends by itself after 60 seconds', chronoEnd.eyebrow.startsWith('Temps écoulé') && elapsed >= 59000 && elapsed < 64000, `${(elapsed / 1000).toFixed(1)} s, ${hits} taps`)
+const pc = await saved()
+check('the chrono record counts the right notes and writes no history', chronoEnd.score > 0 && pc.records.chrono === chronoEnd.score && pc.history.chrono === undefined, `score=${chronoEnd.score} record=${pc.records.chrono}`)
 
 const cardsBefore = Number(await evaluate(`Object.keys(JSON.parse(localStorage.getItem('portee.v1')).cards).length`))
 await evaluate(`location.hash='e1'`)
@@ -114,8 +170,8 @@ const earStart = JSON.parse(await evaluate(`JSON.stringify({ heads: document.que
 check('the ear drill hides the note and offers to listen', earStart.heads === 0 && earStart.button.includes('coute'), `heads=${earStart.heads} button=${earStart.button}`)
 await tap('[data-midi="61"]')
 await sleep(120)
-const early = JSON.parse(await evaluate(`JSON.stringify({ hint: document.querySelector('.hint').textContent.trim(), meta: document.querySelector('.bar-meta').textContent.trim() })`))
-check('a key pressed before the note sounds is ignored', early.hint === '' && early.meta === '1 / 30', `hint=${JSON.stringify(early.hint)} ${early.meta}`)
+const early = { answer: await text('.answer'), count: await text('.progress-count') }
+check('a key pressed before the note sounds is ignored', early.answer === '' && early.count === '1 / 30', `answer=${JSON.stringify(early.answer)} ${early.count}`)
 await sleep(900)
 if ((await evaluate(`document.querySelector('.ear-controls button')?.textContent ?? ''`)).includes('Écouter')) {
   await tap('.ear-controls button')
@@ -136,10 +192,10 @@ for (let k = 0; k < 30; k++) {
 }
 check('every ear card was answered after hearing it', earAnswers === 30, `${earAnswers}/30`)
 check('a wrong answer reveals the note on the staff', revealed)
-const earSummary = JSON.parse(await evaluate(`JSON.stringify({ shown: !!document.querySelector('.summary'), verdict: document.querySelector('.summary .muted')?.textContent ?? '' })`))
-check('the ear summary uses the relaxed time limit', earSummary.shown && earSummary.verdict.includes('3,0'), earSummary.verdict)
-const earSaved = JSON.parse(await evaluate(`JSON.stringify((() => { const p = JSON.parse(localStorage.getItem('portee.v1')); return { history: (p.history.e1 ?? []).length, cards: Object.keys(p.cards).length } })())`))
-check('ear answers are saved without touching reading stats', earSaved.history === 30 && earSaved.cards === cardsBefore, `history=${earSaved.history} cards=${cardsBefore}->${earSaved.cards}`)
+const earVerdict = await text('.reward .verdict')
+check('the ear reward uses the relaxed time limit', earVerdict.includes('3,0'), earVerdict)
+const pe = await saved()
+check('ear answers are saved without touching reading stats', (pe.history.e1 ?? []).length === 30 && Object.keys(pe.cards).length === cardsBefore, `history=${(pe.history.e1 ?? []).length} cards=${cardsBefore}->${Object.keys(pe.cards).length}`)
 
 ws.close(); chrome.kill()
 process.exit(failed ? 1 : 0)
