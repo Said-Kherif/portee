@@ -57,7 +57,7 @@ The design lives on a Claude Design canvas titled "Portée" (`https://claude.ai/
 
 ## Testing
 
-- `tools/shot.mjs <url> <WxH> <actions.json>`: headless Chrome via CDP. Actions: `wait`, `tap` (touch), `key`, `eval`, `text`, `shot`, `full`. Prints console errors and failed requests.
+- `tools/shot.mjs <url> <WxH> <actions.json> [inject.js]`: headless Chrome via CDP. Actions: `wait`, `tap` (touch), `key`, `eval`, `text`, `shot`, `full`. Prints console errors and failed requests. The optional fourth argument is a script evaluated before the page loads: `tools/midi-mock.js` fakes a granted Web MIDI permission and an input named « Piano test USB », and exposes `window.__midi(status, note, velocity)` to send a message from an `eval` action (`0x90` note on, `0x80` or velocity 0 note off).
 - `tools/shots.sh`: builds, serves, captures every screen at 390×844 and 375×667 into `shots/<date>/`.
 - `tools/touch.mjs <url>`: piano gesture regression (swipe must not register a note, tap must, non-scrollable keyboard is immediate, 8-key keyboards fit on iPhone SE). Prints PASS or FAIL per case.
 - `tools/session.mjs <url>`: plays a whole drill session of p2 by reading each note off the staff SVG and tapping its key, checks the score, the ×2 combo after five notes, the reward screen (record, three stars, XP, badges) and the saved progress, then the Home tiles and the review, plays a whole 60 s chrono, and an ear session of e1 (early keys ignored, wrong answers reveal the note, no card stats written). Prints PASS or FAIL per case. It takes about two and a half minutes: run it once, only when asked.

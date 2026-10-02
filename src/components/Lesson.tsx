@@ -4,6 +4,7 @@ import type { ILesson } from '../engine/lessons'
 import type { Level } from '../engine/levels'
 import { keyAlteration, letterAt, midiAt, noteName } from '../engine/notes'
 import type { IProgress } from '../engine/progress'
+import { setMidiHandlers } from '../midi/bus'
 import type { IElement } from '../engine/rhythm'
 import type { IScore } from '../score/layout'
 import { IconClose } from './Icons'
@@ -129,6 +130,11 @@ export function Lesson({ level, lesson, progress, update, onStart, onExit }: ILe
       return n
     })
   }, [])
+
+  useEffect(() => {
+    setMidiHandlers(handleOn, handleOff)
+    return () => setMidiHandlers(null, null)
+  }, [handleOn, handleOff])
 
   const targetMidi = step.quiz && quiz.target >= 0 ? midiOf(elements[quiz.target], step.score) : null
   const quizDone = !!step.quiz && quiz.target < 0 && candidates.length > 0

@@ -9,7 +9,7 @@ if (major < 22) {
   process.exit(1)
 }
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-const [, , url, size, actionsFile] = process.argv
+const [, , url, size, actionsFile, injectFile] = process.argv
 const [width, height] = size.split('x').map(Number)
 const actions = actionsFile ? JSON.parse(readFileSync(actionsFile, 'utf8')) : []
 const port = 9300 + Math.floor(Math.random() * 500)
@@ -60,6 +60,7 @@ await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFac
 await send('Emulation.setTouchEmulationEnabled', { enabled: true })
 await send('Page.bringToFront')
 await send('Emulation.setFocusEmulationEnabled', { enabled: true })
+if (injectFile) await send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync(injectFile, 'utf8') })
 await send('Page.navigate', { url })
 await sleep(1800)
 for (const a of actions) {
